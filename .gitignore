@@ -1,0 +1,38 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.venv/
+venv/
+
+# Node / frontend
+node_modules/
+dist/
+.vite/
+npm-debug.log*
+
+# Environment and local secrets
+.env
+backend/.env
+frontend/.env
+
+# Runtime data
+backend/uploads/
+backend/data/
+backend/*.db
+backend/local-uvicorn.pid
+*.sqlite
+*.sqlite3
+
+# Local model/cache artifacts
+backend/.hf-cache/
+.cache/
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/

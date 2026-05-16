@@ -1,0 +1,79 @@
+services:
+  ollama:
+    image: ollama/ollama:latest
+    container_name: gemma-hackathon-ollama
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama-models:/root/.ollama
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "ollama", "list"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 20s
+
+  ollama-pull:
+    image: ollama/ollama:latest
+    depends_on:
+      ollama:
+        condition: service_healthy
+    environment:
+      OLLAMA_HOST: http://ollama:11434
+      OLLAMA_MODEL: ${OLLAMA_MODEL:-gemma4:e4b}
+    entrypoint: ["ollama", "pull"]
+    command: ["${OLLAMA_MODEL:-gemma4:e4b}"]
+    restart: "no"
+
+  backend:
+    build:
+      context: ./backend
+    container_name: gemma-hackathon-backend
+    depends_on:
+      ollama-pull:
+        condition: service_completed_successfully
+    environment:
+      OLLAMA_HOST: http://ollama:11434
+      GEMMA_REASONING_MODEL: ${OLLAMA_MODEL:-gemma4:e4b}
+      GEMMA_LIGHT_MODEL: ${OLLAMA_MODEL:-gemma4:e4b}
+      POSTGRES_DSN: sqlite+aiosqlite:////app/data/scidb.db
+      CHROMA_PATH: /app/data/chroma_db
+      UPLOADS_DIR: /app/uploads
+      REDIS_URL: redis://redis:6379/0
+      CELERY_BROKER_URL: redis://redis:6379/1
+      CELERY_RESULT_BACKEND: redis://redis:6379/2
+      CORS_ORIGINS: '["http://localhost:8080","http://127.0.0.1:8080","http://localhost:5173","http://127.0.0.1:5173"]'
+    ports:
+      - "8000:8000"
+    volumes:
+      - backend-data:/app/data
+      - backend-uploads:/app/uploads
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        VITE_API_BASE: /api/v1
+    container_name: gemma-hackathon-frontend
+    depends_on:
+      backend:
+        condition: service_started
+    ports:
+      - "8080:80"
+    restart: unless-stopped
+
+  public-tunnel:
+    image: cloudflare/cloudflared:latest
+    container_name: gemma-hackathon-public-tunnel
+    depends_on:
+      frontend:
+        condition: service_started
+    command: tunnel --no-autoupdate --url http://frontend:80
+    restart: unless-stopped
+
+volumes:
+  ollama-models:
+  backend-data:
+  backend-uploads:

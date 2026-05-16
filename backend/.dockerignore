@@ -1,0 +1,12 @@
+__pycache__/
+*.py[cod]
+.venv/
+.hf-cache/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.env
+local-uvicorn.pid
+uploads/
+data/
+*.db
