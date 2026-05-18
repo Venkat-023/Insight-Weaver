@@ -83,7 +83,7 @@ export const StaggeredMenu: React.FC<StaggeredMenuProps> = ({
   }, []);
 
   const profileName = user?.display_name || user?.username || "Researcher";
-  const profileMeta = user?.email || user?.username || "Scientific workspace";
+  const profileMeta = user?.email || (user?.display_name && user?.username && user.display_name !== user.username ? user.username : "");
   const modelState = useMemo(() => {
     const status = (modelStatus?.status || "unknown").toLowerCase();
     if (status === "ready") return "Model ready";
@@ -224,7 +224,7 @@ export const StaggeredMenu: React.FC<StaggeredMenuProps> = ({
             </div>
             <div className="sm-profile-copy">
               <p className="sm-profile-name">{profileName}</p>
-              <p className="sm-profile-meta">{profileMeta}</p>
+              {profileMeta ? <p className="sm-profile-meta">{profileMeta}</p> : null}
             </div>
           </div>
 
