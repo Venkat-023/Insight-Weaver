@@ -36,14 +36,14 @@
   gap: 10px;
   padding: 10px 14px;
   border: 1px solid var(--sm-border);
-  border-radius: 999px;
+  border-radius: 0;
   background: var(--sm-surface);
   color: var(--sm-text);
   box-shadow: var(--sm-shadow);
 }
 
 .sm-mobile-toggle-label {
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 600;
   letter-spacing: 0.02em;
 }
@@ -106,7 +106,7 @@
 }
 
 .sm-brand-title {
-  font-size: 16px;
+  font-size: 17px;
   font-weight: 700;
   letter-spacing: -0.02em;
   color: var(--sm-text);
@@ -119,10 +119,10 @@
 }
 
 .sm-utility-button {
-  width: 36px;
-  height: 36px;
+  width: 40px;
+  height: 40px;
   border: 1px solid var(--sm-border);
-  border-radius: 10px;
+  border-radius: 0;
   background: var(--sm-surface);
   color: var(--sm-text);
   display: inline-flex;
@@ -204,11 +204,11 @@
   gap: 12px;
   padding: 12px 14px;
   border: 1px solid transparent;
-  border-radius: 14px;
+  border-radius: 0;
   background: transparent;
   color: var(--sm-text-muted);
   text-align: left;
-  font-size: 15px;
+  font-size: 16px;
   font-weight: 500;
   letter-spacing: -0.01em;
 }
@@ -231,14 +231,14 @@
 }
 
 .sm-nav-link.is-emphasized {
-  border-left: 2px solid var(--sm-accent);
-  padding-left: 13px;
+  border-color: var(--sm-border);
+  background: var(--sm-hover);
+  color: var(--sm-text);
 }
 
 .sm-nav-link.is-emphasized.is-active {
   background: var(--sm-active);
   border-color: var(--sm-border);
-  border-left-color: var(--sm-accent);
   font-weight: 650;
 }
 
@@ -256,11 +256,11 @@
   align-items: center;
   justify-content: center;
   gap: 8px;
-  min-height: 44px;
+  min-height: 48px;
   width: 100%;
   border: 1px solid var(--sm-border);
-  border-radius: 12px;
-  font-size: 14px;
+  border-radius: 0;
+  font-size: 15px;
   font-weight: 600;
 }
 
