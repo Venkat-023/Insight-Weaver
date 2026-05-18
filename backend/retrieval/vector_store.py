@@ -15,13 +15,13 @@ class SearchResult:
 
 
 class VectorStore:
-    def __init__(self) -> None:
+    def __init__(self, load_model: bool = True) -> None:
         import chromadb
 
         settings = get_settings()
         self.client = chromadb.PersistentClient(path=settings.chroma_path)
         self.collection = self.client.get_or_create_collection("scientific_chunks", metadata={"hnsw:space": "cosine"})
-        self.model = _get_embedding_model()
+        self.model = _get_embedding_model() if load_model else None
 
     def add_chunks(self, paper_id: int, chunks: list[Chunk], paper_meta: dict) -> list[str]:
         ids: list[str] = []
@@ -38,6 +38,7 @@ class VectorStore:
                     "year": paper_meta.get("year") or 0,
                     "authors_str": ", ".join(paper_meta.get("authors", [])),
                     "arxiv_id": paper_meta.get("arxiv_id") or "",
+                    "workspace_id": paper_meta.get("workspace_id") or "legacy",
                 }
                 for chunk in batch
             ]
@@ -56,9 +57,12 @@ class VectorStore:
         n_results: int = 15,
         filter_paper_id: int | None = None,
         filter_section: str | None = None,
+        workspace_id: str | None = None,
         min_importance: float = 0.0,
     ) -> list[SearchResult]:
         where: dict[str, Any] = {}
+        if workspace_id is not None:
+            where["workspace_id"] = workspace_id
         if filter_paper_id is not None:
             where["paper_id"] = filter_paper_id
         if filter_section:
@@ -73,17 +77,24 @@ class VectorStore:
         exclude_paper_ids: list[int],
         n_results: int = 10,
         similarity_threshold: float = 0.78,
+        workspace_id: str | None = None,
     ) -> list[SearchResult]:
         embeddings = self.model.encode([chunk_text], normalize_embeddings=True).tolist()
+        where: dict[str, Any] = {"paper_id": {"$nin": exclude_paper_ids}}
+        if workspace_id is not None:
+            where = {"$and": [{"paper_id": {"$nin": exclude_paper_ids}}, {"workspace_id": workspace_id}]}
         result = self.collection.query(
             query_embeddings=embeddings,
             n_results=n_results,
-            where={"paper_id": {"$nin": exclude_paper_ids}},
+            where=where,
         )
         return [item for item in self._to_search_results(result, 0.0) if item.similarity_score >= similarity_threshold]
 
     def delete_paper(self, paper_id: int) -> None:
         self.collection.delete(where={"paper_id": paper_id})
+
+    def delete_workspace(self, workspace_id: str) -> None:
+        self.collection.delete(where={"workspace_id": workspace_id})
 
     @staticmethod
     def _to_search_results(result: dict, min_importance: float) -> list[SearchResult]:

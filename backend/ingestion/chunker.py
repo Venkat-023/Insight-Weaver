@@ -5,6 +5,8 @@ from functools import lru_cache
 import numpy as np
 
 from ingestion.pdf_parser import PaperRawData
+from preprocessing.cleaner import ScientificTextCleaner
+from preprocessing.splitter import ScientificSentenceSplitter
 
 
 @dataclass
@@ -24,10 +26,13 @@ class SemanticChunker:
     def __init__(self, use_semantic_splitting: bool = False) -> None:
         self.nlp = _get_sentencizer() if use_semantic_splitting else None
         self.model = _get_chunking_model() if use_semantic_splitting else None
+        self.cleaner = ScientificTextCleaner()
+        self.splitter = ScientificSentenceSplitter()
 
     def chunk_paper(self, paper: PaperRawData) -> list[Chunk]:
         chunks: list[Chunk] = []
         for section, text in paper.sections.items():
+            text = self.cleaner.clean(text, mode="standard")
             if not text.strip():
                 continue
             if section in {"references", "acknowledgments"}:
@@ -54,20 +59,7 @@ class SemanticChunker:
         sentences = self._split_sentences(text)
         if len(sentences) <= 6:
             return [text]
-        chunks: list[str] = []
-        current: list[str] = []
-        current_words = 0
-        target_words = int(self.MAX_CHUNK_TOKENS / 1.3)
-        for sentence in sentences:
-            sentence_words = len(sentence.split())
-            if current and current_words + sentence_words > target_words:
-                chunks.append(" ".join(current))
-                current = []
-                current_words = 0
-            current.append(sentence)
-            current_words += sentence_words
-        if current:
-            chunks.append(" ".join(current))
+        chunks = self.splitter.pack_to_chunks(sentences, max_words=220, overlap=0)
         return self._normalize_chunk_sizes(chunks)
 
     def _semantic_split(self, text: str, section: str) -> list[str]:
@@ -147,7 +139,7 @@ class SemanticChunker:
         normalized = re.sub(r"\s+", " ", text).strip()
         if not normalized:
             return []
-        return [sentence.strip() for sentence in re.split(r"(?<=[.!?])\s+", normalized) if sentence.strip()]
+        return ScientificSentenceSplitter().split(normalized)
 
 
 @lru_cache(maxsize=1)

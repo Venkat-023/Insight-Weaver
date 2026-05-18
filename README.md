@@ -4,168 +4,179 @@ emoji: 🧬
 colorFrom: indigo
 colorTo: blue
 sdk: docker
-app_port: 7860
 pinned: false
 license: mit
 ---
 
 # Insight Weaver
 
-> A Gemma-powered scientific discovery copilot that turns dense research papers into searchable evidence, knowledge graphs, contradiction maps, and testable hypotheses.
+> A Gemma + Ollama powered scientific discovery copilot that converts research papers into clean evidence, scientific entities, knowledge graphs, GraphRAG answers, contradiction analysis, and paper-specific testable hypotheses.
 
 [![Gemma](https://img.shields.io/badge/Gemma-Ollama-7c3aed?style=for-the-badge)](#)
 [![FastAPI](https://img.shields.io/badge/FastAPI-Backend-059669?style=for-the-badge)](#)
 [![React](https://img.shields.io/badge/React-Frontend-2563eb?style=for-the-badge)](#)
-[![Docker](https://img.shields.io/badge/Docker-Ready-0f172a?style=for-the-badge)](#)
+[![Docker](https://img.shields.io/badge/Docker-Compose-0f172a?style=for-the-badge)](#)
 
 ## Problem Statement
 
-Scientific knowledge is growing faster than researchers can read, connect, and validate it. A single research question may require scanning dozens of papers, comparing methods, tracking conflicting claims, and identifying gaps that are still experimentally testable. Traditional search engines return documents. They do not explain how ideas connect, where evidence conflicts, or what new hypothesis is worth exploring next.
+Modern scientific knowledge is expanding faster than researchers can read, connect, and validate it. A single research question can require dozens of papers, each with different methods, datasets, claims, limitations, and contradictions. Search engines return documents, and generic chatbots summarize text, but neither reliably answers the deeper research question:
 
-This creates a major bottleneck for students, researchers, doctors, biotech teams, and innovation labs:
+```text
+What does this literature prove, where does it disagree, what entities connect across papers,
+and what hypothesis should be tested next?
+```
 
-- Literature reviews take weeks of manual reading.
-- Important relationships are hidden across papers and sections.
-- Contradictory results are hard to surface early.
-- Research hypotheses are often generated from incomplete context.
-- LLM answers can sound confident without being grounded in evidence.
+Insight Weaver addresses this gap by treating PDFs as structured scientific evidence. It parses papers, cleans noisy PDF text, extracts scientific entities, builds a local graph, retrieves relevant evidence, and uses Gemma through Ollama only after the evidence layer has been built. The result is a research workspace that moves from reading to reasoning.
 
-Insight Weaver solves this by converting uploaded scientific papers into a structured discovery workspace powered by local Gemma inference through Ollama.
+## What It Does
 
-## What Insight Weaver Does
+- Upload scientific PDFs and process them into structured paper records.
+- Clean PDF extraction artifacts such as ligatures, broken hyphenation, citations, page headers, table rows, and noisy newlines.
+- Detect titles, authors, abstracts, sections, and high-value evidence chunks.
+- Extract scientific entities such as proteins, genes, diseases, chemicals, methods, datasets, pathways, organisms, and concepts.
+- Build graph views connecting papers, entities, mentions, and extracted relationships.
+- Run GraphRAG over retrieved chunks plus graph context.
+- Generate hypotheses that mention actual entities and evidence from uploaded papers rather than generic research advice.
+- Detect contradictions and unexplored connections across selected papers.
+- Give every public visitor a private anonymous workspace so they never see another visitor's papers, graph, hypotheses, or analysis results.
 
-Insight Weaver is not just a PDF chatbot. It is a research reasoning system that combines retrieval, entity extraction, knowledge graphs, and Gemma-based generation into one workflow.
+## Why It Is Different
 
-1. Upload research papers
+Insight Weaver is not a PDF chatbot. It is a scientific claim and evidence pipeline.
 
-   Users upload PDFs directly into the web app. The backend parses the paper, extracts metadata, chunks sections, and stores the processed evidence.
+```text
+Wrong model:   PDF -> LLM -> answer
+Right model:   PDF -> clean text -> chunks -> entities -> graph -> retrieval -> Gemma reasoning
+```
 
-2. Build a scientific knowledge layer
+The LLM is the final reasoning layer, not the first parser. This design makes the output more inspectable, more grounded, and more useful for real research review.
 
-   The system extracts scientific entities such as diseases, methods, datasets, genes, proteins, metrics, and concepts. It also maps relationships between them and creates a graph-grounded view of the literature.
+## Corrected Sprint Fixes
 
-3. Ask evidence-grounded questions
+This version implements the judge-focused corrected sprint plan:
 
-   GraphRAG combines semantic retrieval with graph context. Answers are grounded in retrieved chunks, paper IDs, sections, entities, and relationships instead of unsupported model memory.
-
-4. Detect contradictions across papers
-
-   Insight Weaver compares claims across selected papers and highlights disagreement in results, methods, causal claims, or conclusions.
-
-5. Generate testable hypotheses
-
-   Using Gemma through Ollama, the system generates structured research hypotheses with reasoning, supporting evidence, confidence, novelty, testability, suggested experiments, and falsifiable conditions.
-
-6. Explore the research landscape
-
-   The app helps identify dominant themes, research gaps, cross-paper connections, and promising future directions.
-
-## Why This Is Different
-
-Most AI research assistants stop at summarization. Insight Weaver goes further:
-
-- It treats papers as structured scientific evidence, not just text blobs.
-- It combines lexical search, vector retrieval, and graph relationships.
-- It gives fast fallback answers even when model calls are slow.
-- It uses Gemma locally via Ollama, keeping inference portable and reproducible.
-- It supports contradiction detection and hypothesis generation, which are closer to real research work than simple Q&A.
-- It is fully Dockerized for one-command deployment.
-
-## Product Experience
-
-The frontend is designed as a research cockpit:
-
-- Upload and process PDF papers.
-- View indexed paper status.
-- Ask GraphRAG questions.
-- Inspect generated answers and evidence.
-- Visualize knowledge graph neighborhoods.
-- Generate hypotheses from uploaded literature.
-- Run contradiction, connection, and landscape analysis.
-- Monitor the Gemma/Ollama model status from the UI.
+| Area | Previous Risk | Current Fix |
+| --- | --- | --- |
+| PDF text quality | Raw PDF artifacts polluted chunks and prompts | Added `ScientificTextCleaner` for standard and aggressive cleaning |
+| Sentence splitting | Naive punctuation splitting broke `et al.`, `Fig.`, decimals | Added `ScientificSentenceSplitter` with scientific boundary handling |
+| Title/author parsing | Largest font could select journal logos or headers | Added position, font, metadata exclusion, and affiliation filtering |
+| Section detection | Missed numbered and variant headings | Expanded vocabulary and normalized numeric/Roman prefixes |
+| Entity extraction | Keyword lookup produced tiny graphs | Added pattern NER for biomedical/scientific methods, datasets, proteins, genes, diseases, chemicals |
+| Hypotheses | Generic fallback dominated outputs | Fallback now uses retrieved chunks and extracted entities |
+| GraphRAG merge | DB and Chroma IDs did not deduplicate | Uses `chroma_embedding_id` as canonical chunk identity |
+| Lexical search | Broad `iLIKE` scans caused noisy retrieval | Uses candidate fetch plus BM25-style scoring |
+| SQL graph fallback | Returned only paper-to-entity mentions | Also returns entity-to-entity relationship edges |
+| Public demo privacy | All visitors shared one global database view | Added per-browser workspace isolation and reset |
+| Docker startup | Race conditions around model readiness | Added health-gated Compose startup |
 
 ## Architecture
 
 ```mermaid
 flowchart LR
-    U["User"] --> FE["React + Vite Frontend"]
-    FE --> NX["Nginx Proxy"]
+    U["Public User"] --> FE["React + Vite UI"]
+    FE -->|X-Workspace-ID| NX["Nginx Frontend"]
     NX --> API["FastAPI Backend"]
+    API --> CL["Scientific Text Cleaner"]
+    API --> PARSE["PDF Parser + Chunker"]
+    API --> NER["Pattern NER + SciSpaCy Optional"]
     API --> DB["SQLite / SQLAlchemy"]
-    API --> VS["Chroma Vector Store"]
-    API --> KG["Knowledge Graph Layer"]
+    API --> CH["Chroma Vector Store"]
+    API --> KG["SQL Knowledge Graph Fallback"]
     API --> OL["Ollama"]
-    OL --> GM["Gemma Model"]
-    API --> R["GraphRAG + Reasoning Modules"]
-    R --> API
-    API --> NX
-    NX --> FE
+    OL --> GM["Gemma"]
+    KG --> RAG["GraphRAG"]
+    CH --> RAG
+    DB --> RAG
+    RAG --> HYP["Hypotheses + Analysis"]
+    HYP --> FE
 ```
 
-## Core Modules
+## Core Pipeline
 
-| Layer | Responsibility |
-| --- | --- |
-| Frontend | React research workspace for upload, GraphRAG, graph view, hypotheses, and analysis |
-| API | FastAPI service exposing papers, search, graph, agents, hypothesis, and analysis endpoints |
-| Ingestion | PDF parsing, metadata extraction, section chunking, paper processing |
-| Retrieval | Semantic search, vector store integration, GraphRAG answer construction |
-| Reasoning | Entity extraction, relationship mapping, contradiction detection, cross-paper reasoning |
-| Model Interface | Ollama client wrapper for Gemma generation, structured JSON generation, and warmup |
-| Deployment | Docker Compose stack for frontend, backend, Ollama, model pull, and public tunnel |
+1. **Workspace creation**  
+   The frontend creates an anonymous UUID in `sessionStorage` and sends it as `X-Workspace-ID` on every user-data request.
+
+2. **PDF ingestion**  
+   Uploaded PDFs are stored under a workspace-specific upload path. A `Paper` row is created with `processing` status.
+
+3. **Parsing and cleaning**  
+   PyMuPDF extracts structured text and layout metadata. The cleaner normalizes ligatures, line breaks, citations, table noise, page numbers, formula spacing, and running headers.
+
+4. **Section-aware chunking**  
+   The chunker splits scientific text into sentence-boundary chunks, keeps important sections compact, and scores chunks by section and claim density.
+
+5. **Entity extraction**  
+   Pattern NER identifies scientific entities. SciSpaCy can contribute when installed. Entities are deduplicated with canonical keys and scoped to the visitor workspace.
+
+6. **Graph building**  
+   Paper-to-entity mentions and entity-to-entity relationships are persisted in SQL. Neo4j remains optional, but SQL fallback now supports usable graph visualization.
+
+7. **Retrieval and GraphRAG**  
+   Database candidates are scored with BM25-style ranking. Vector hits, when enabled, are merged by `chroma_embedding_id`. Graph context contributes entities, relationships, and paper evidence.
+
+8. **Gemma reasoning**  
+   Gemma receives raw retrieved evidence, key entities, relationships, and gaps. If Gemma fails, deterministic fallback hypotheses still use current paper entities and evidence.
+
+9. **Reset and privacy**  
+   A visitor can reset their workspace. The backend deletes their papers, chunks, entities, relationships, hypotheses, contradictions, uploads, and vector records without touching other visitors.
 
 ## Tech Stack
 
-- **Frontend:** React, Vite, Lucide React, React Markdown, Force Graph
-- **Backend:** FastAPI, SQLAlchemy Async, Pydantic Settings, Uvicorn
-- **AI / LLM:** Gemma via Ollama
-- **Retrieval:** ChromaDB, sentence-transformers, GraphRAG
-- **Scientific NLP:** spaCy, SciSpaCy, PyMuPDF, pdfplumber
-- **Data:** SQLite by default, with async SQLAlchemy; Chroma for vectors
-- **Deployment:** Docker, Docker Compose, Nginx, Cloudflare Tunnel support
+| Layer | Technology |
+| --- | --- |
+| Frontend | React, Vite, Lucide React, React Markdown, Force Graph |
+| Backend | FastAPI, SQLAlchemy Async, Pydantic, Uvicorn |
+| Model Runtime | Ollama + Gemma |
+| Retrieval | ChromaDB, sentence-transformers, BM25-style candidate scoring |
+| NLP / PDF | PyMuPDF, pdfplumber, spaCy, SciSpaCy optional |
+| Data | SQLite by default, workspace-scoped tables, Chroma metadata filters |
+| Deployment | Docker Compose, Nginx, Cloudflare quick tunnel |
 
 ## Repository Structure
 
 ```text
 Insight-Weaver/
 ├── backend/
-│   ├── api/              # FastAPI app and routes
-│   ├── core/             # Config, Gemma engine, model warmup
-│   ├── graph/            # Knowledge graph builder and queries
-│   ├── ingestion/        # PDF parsing, metadata, chunking
+│   ├── api/              # FastAPI app, routes, workspace isolation
+│   ├── core/             # Gemma engine, config, hypothesis generation
+│   ├── graph/            # Optional Neo4j graph builder
+│   ├── ingestion/        # PDF parser, metadata extractor, chunker
+│   ├── preprocessing/    # Scientific text cleaner and sentence splitter
 │   ├── reasoning/        # Entity extraction, contradictions, cross-paper reasoning
-│   ├── retrieval/        # Semantic search, vector store, GraphRAG
-│   ├── schemas/          # API request/response schemas
+│   ├── retrieval/        # Vector store, semantic search, GraphRAG
+│   ├── schemas/          # Pydantic request/response schemas
 │   └── tasks/            # Paper processing pipeline
 ├── frontend/
-│   ├── src/              # React application
-│   ├── Dockerfile        # Production frontend image
+│   ├── src/              # React app
+│   ├── Dockerfile        # Frontend production image
 │   └── nginx.conf        # Static serving and API proxy
-├── docker-compose.yml    # Full app + Ollama deployment
+├── deploy/               # Optional cloud deployment guides
+├── docker-compose.yml    # Full local app + Ollama + tunnel stack
 ├── DEPLOY_OLLAMA_DOCKER.md
+├── Processlogic.md
 └── README.md
 ```
 
-## Quick Start With Docker and Ollama
+## Quick Start
 
 Prerequisites:
 
 - Docker Desktop
-- At least 12 GB free disk for the default Gemma model
-- Enough memory for local inference
+- Enough disk space for the selected Gemma model
+- Enough memory for local Ollama inference
 
 ```powershell
 git clone https://github.com/Venkat-023/Insight-Weaver.git
 cd Insight-Weaver
 Copy-Item .env.example .env
-docker compose up --build
+docker compose up --build -d
 ```
 
 Open:
 
 - App: `http://localhost:8080`
 - Backend health: `http://localhost:8000/health`
-- Ollama API: `http://localhost:11434`
+- Ollama: `http://localhost:11434`
 
 The default model is:
 
@@ -173,146 +184,116 @@ The default model is:
 OLLAMA_MODEL=gemma4:e4b
 ```
 
-To use a lighter model, edit `.env`:
+For lower hardware usage:
 
 ```env
 OLLAMA_MODEL=gemma4:e2b
 ```
 
-Then run:
+## Health Checks
+
+The backend health endpoint reports component-level status:
 
 ```powershell
-docker compose up --build
+Invoke-RestMethod http://localhost:8000/health
 ```
 
-## Public Demo Tunnel
+Expected healthy output:
 
-For hackathon demos or placement reviews, the stack includes a Cloudflare quick tunnel service.
+```json
+{
+  "status": "ok",
+  "components": {
+    "database": "ok",
+    "ollama": "ok",
+    "models": ["gemma4:e4b"],
+    "model_ready": true
+  }
+}
+```
+
+## Public Demo Link
+
+The Compose stack includes a Cloudflare quick tunnel:
 
 ```powershell
 docker compose up -d public-tunnel
 docker logs gemma-hackathon-public-tunnel
 ```
 
-Copy the generated `trycloudflare.com` URL from the logs. The link remains active while your machine, Docker Desktop, and the tunnel container are running.
+The generated `trycloudflare.com` URL is temporary and remains active only while Docker and the host machine are running. For a permanent production URL, use a named Cloudflare Tunnel or deploy the same Compose stack to a VPS.
 
-For a production-grade public URL, use a named Cloudflare Tunnel or deploy the same Docker stack to a VPS or cloud VM.
+## Workspace Isolation
 
-## Hugging Face Spaces Deployment
+Public visitors are isolated by anonymous browser session:
 
-The repository also includes a root `Dockerfile` for Hugging Face Spaces. Unlike local Docker Compose, Spaces run a single container, so this image bundles:
+- The frontend stores `iw_workspace_id` in `sessionStorage`.
+- Every API request that touches user data sends `X-Workspace-ID`.
+- Backend routes reject missing or invalid workspace IDs.
+- Papers, entities, hypotheses, contradictions, uploads, and vector metadata are workspace-scoped.
+- A reset action calls `DELETE /api/v1/workspace/current`.
 
-- React frontend
-- FastAPI backend
-- Nginx reverse proxy
-- optional local Ollama runtime
+This prevents one visitor from seeing another visitor's uploads, graph, search results, hypotheses, or analysis history.
 
-The Space listens on port `7860`.
-
-Recommended Space settings:
-
-```env
-HF_SPACE_LIGHT_MODE=true
-OLLAMA_MODEL=gemma4:e2b
-```
-
-The default Space build uses a lightweight public-demo mode so Hugging Face does not need to download and run Ollama/Gemma inside the container. PDF upload, parsing, database-backed retrieval, graph exploration, and deterministic fallbacks remain available.
-
-For Gemma-backed generation, use an external Ollama/Ollama Cloud endpoint:
-
-```env
-USE_EXTERNAL_OLLAMA=true
-OLLAMA_HOST=<your-ollama-endpoint>
-OLLAMA_MODEL=<model-tag>
-```
-
-Running local Ollama directly inside a Space requires paid hardware and persistent storage; otherwise model download and startup can exceed Space limits.
-
-## Local Development
-
-Backend:
-
-```powershell
-cd backend
-python -m venv .venv
-.\.venv\Scripts\Activate.ps1
-pip install -r requirements.txt
-pip install aiosqlite==0.20.0
-uvicorn api.main:app --host 127.0.0.1 --port 8000
-```
-
-Frontend:
-
-```powershell
-cd frontend
-npm install
-npm run dev
-```
-
-Open `http://127.0.0.1:5173`.
-
-## Key API Capabilities
+## Key API Endpoints
 
 | Endpoint | Purpose |
 | --- | --- |
+| `GET /health` | Component health for DB, Ollama, and model readiness |
 | `POST /api/v1/papers/upload` | Upload and process a PDF |
-| `GET /api/v1/papers/` | List indexed papers |
-| `POST /api/v1/search/graphrag` | Ask graph-grounded research questions |
-| `GET /api/v1/graph/{paper_id}` | Export graph for a paper |
-| `POST /api/v1/hypothesis/generate` | Generate testable hypotheses |
-| `POST /api/v1/analysis/contradictions` | Detect contradictions across papers |
+| `GET /api/v1/papers/` | List current workspace papers |
+| `POST /api/v1/search` | Run GraphRAG search |
+| `POST /api/v1/search/semantic` | Run vector semantic search |
+| `GET /api/v1/graph/{paper_id}` | Load paper graph |
+| `GET /api/v1/graph/entity/{entity_name}` | Load entity neighborhood |
+| `POST /api/v1/hypothesis/generate` | Generate evidence-grounded hypotheses |
+| `POST /api/v1/analysis/contradictions` | Detect contradictions across selected papers |
 | `POST /api/v1/analysis/connections` | Find cross-paper connections |
-| `POST /api/v1/analysis/landscape` | Analyze a research topic landscape |
-| `GET /api/v1/agents/model-status` | Check Gemma/Ollama readiness |
+| `POST /api/v1/analysis/landscape` | Analyze a topic landscape |
+| `DELETE /api/v1/workspace/current` | Reset the current anonymous workspace |
+
+All `/api/v1/*` user-data routes require:
+
+```http
+X-Workspace-ID: <uuid-v4>
+```
 
 ## Example Workflow
 
 1. Start the Docker stack.
-2. Upload two or more scientific PDFs.
-3. Wait until processing is complete.
-4. Ask a GraphRAG question such as:
+2. Open `http://localhost:8080`.
+3. Upload one or more PDFs.
+4. Wait for processing to complete.
+5. Open the graph tab and inspect extracted entities.
+6. Ask a GraphRAG question.
+7. Generate hypotheses and review evidence, experiments, and falsifiable conditions.
+8. Run contradiction or connection analysis across selected papers.
+9. Use Reset Workspace before a new demo or user session.
 
-   ```text
-   What methods are most effective for lesion detection and where do the papers disagree?
-   ```
+## Validation Status
 
-5. Open the graph tab to inspect extracted concepts and relationships.
-6. Generate hypotheses from the uploaded papers.
-7. Run contradiction analysis on a topic.
-8. Use suggested experiments and falsifiable conditions as starting points for research planning.
+The current implementation has been validated with:
 
-## Innovation Highlights
+- Frontend production build: `npm run build`
+- Python syntax compilation across backend app files
+- Smoke test for cleaner, sentence splitter, and pattern NER
+- Docker Compose config validation
+- Full Docker rebuild and restart
+- Healthy backend, frontend, Ollama services
+- `/health` returning DB/Ollama/Gemma readiness
+- Workspace reset endpoint returning successfully
 
-- **Graph-grounded generation:** Gemma responses are anchored in retrieved evidence and extracted relationships.
-- **Scientific contradiction detection:** The system looks for conflicting claims instead of only summarizing consensus.
-- **Hypothesis engine:** Generates structured, testable, falsifiable hypotheses rather than generic ideas.
-- **Local-first AI deployment:** Ollama keeps Gemma inference portable and avoids dependency on hosted LLM APIs.
-- **Research-grade UX:** The app supports the full loop from paper upload to graph exploration to research planning.
-- **Dockerized reproducibility:** Frontend, backend, Ollama, model pull, and public tunnel run from Compose.
+Note: full local `pytest` may require a clean Python environment. The checked machine had a global `py.py` shadowing pytest imports and a stale `.venv` pointing to a missing Python path, while the Docker runtime itself builds and runs correctly.
 
-## Current Deployment Status
+## Roadmap
 
-This project has been containerized with:
-
-- Frontend served by Nginx on port `8080`
-- Backend served by FastAPI on port `8000`
-- Ollama served on port `11434`
-- Gemma model configured through `OLLAMA_MODEL`
-- Upload proxy limit increased for larger PDFs
-- Optional Cloudflare public tunnel
-
-## Future Roadmap
-
-- Named Cloudflare Tunnel or VPS deployment for permanent public access
-- User-level workspaces and persistent auth
-- Citation export to BibTeX and RIS
-- Paper comparison dashboards
-- Neo4j-backed graph exploration in production mode
-- Streaming Gemma responses
-- Evaluation suite for groundedness, contradiction quality, and hypothesis novelty
+- Add a clean Alembic migration set for non-SQLite production databases.
+- Add stronger relationship extraction with calibrated evidence labels.
+- Add named Cloudflare Tunnel or VPS deployment for permanent public access.
+- Add streaming model responses.
+- Add evaluation metrics for retrieval relevance, graph quality, and hypothesis groundedness.
+- Add citation export and paper comparison reports.
 
 ## Why This Matters
 
-Insight Weaver compresses the early research cycle from days into minutes. It helps a researcher move from "I have papers" to "I understand the evidence, conflicts, graph structure, and next experiments." That is the difference between search and discovery.
-
-Built for the Kaggle Gemma hackathon, but designed like a real research product.
+Insight Weaver compresses the early research cycle from "I have a folder of papers" to "I understand the evidence, entities, conflicts, graph structure, and next testable experiments." It is designed for hackathon impact, but the architecture follows a real AI-RAG system principle: clean the evidence first, reason second, and make every output inspectable.

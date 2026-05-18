@@ -35,13 +35,15 @@ class CrossPaperReasoner:
         self.graph_builder = graph_builder
 
     async def find_unexplored_connections(
-        self, paper_id: int, db: AsyncSession
+        self, paper_id: int, db: AsyncSession, workspace_id: str = "legacy"
     ) -> list[UnexploredConnection]:
         if self.vector_store is None:
             return []
         result = await db.execute(
             select(Chunk)
+            .join(Paper, Paper.id == Chunk.paper_id)
             .where(Chunk.paper_id == paper_id)
+            .where(Paper.workspace_id == workspace_id)
             .order_by(Chunk.importance_score.desc())
             .limit(5)
         )
@@ -49,7 +51,7 @@ class CrossPaperReasoner:
         best: dict[int, UnexploredConnection] = {}
         for chunk in source_chunks:
             try:
-                similar_items = self.vector_store.find_cross_paper_similar(chunk.content, [paper_id])
+                similar_items = self.vector_store.find_cross_paper_similar(chunk.content, [paper_id], workspace_id=workspace_id)
             except Exception:
                 continue
             for similar in similar_items:
@@ -73,7 +75,7 @@ class CrossPaperReasoner:
         return sorted(best.values(), key=lambda item: item.connection_score, reverse=True)[:10]
 
     async def detect_contradictions(
-        self, topic: str, paper_ids: list[int], db: AsyncSession
+        self, topic: str, paper_ids: list[int], db: AsyncSession, workspace_id: str = "legacy"
     ) -> list[dict]:
         if not paper_ids or len(paper_ids) < 2:
             return []
@@ -83,7 +85,7 @@ class CrossPaperReasoner:
         if self.vector_store is not None:
             for paper_id in paper_ids:
                 try:
-                    results = self.vector_store.search(topic, n_results=5, filter_paper_id=paper_id)
+                    results = self.vector_store.search(topic, n_results=5, filter_paper_id=paper_id, workspace_id=workspace_id)
                     paper_chunks[paper_id] = "\n\n".join(item.text for item in results)
                 except Exception:
                     paper_chunks[paper_id] = ""
@@ -125,6 +127,7 @@ class CrossPaperReasoner:
             found.append(row_data)
             if verdict.get("has_contradiction") is True and verdict.get("severity") != "LOW":
                 row = ContradictionModel(
+                    workspace_id=workspace_id,
                     paper_a_id=paper_a_id,
                     paper_b_id=paper_b_id,
                     severity=verdict.get("severity", "MEDIUM"),
@@ -139,10 +142,10 @@ class CrossPaperReasoner:
         await db.commit()
         return found
 
-    async def analyze_research_landscape(self, topic: str, db: AsyncSession) -> dict:
+    async def analyze_research_landscape(self, topic: str, db: AsyncSession, workspace_id: str = "legacy") -> dict:
         papers = (
             await db.execute(
-                select(Paper).where(Paper.raw_text.ilike(f"%{topic}%")).limit(100)
+                select(Paper).where(Paper.workspace_id == workspace_id, Paper.raw_text.ilike(f"%{topic}%")).limit(100)
             )
         ).scalars().all()
         years = [paper.publication_year for paper in papers if paper.publication_year]

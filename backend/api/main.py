@@ -1,13 +1,16 @@
-import logging
 import asyncio
 import logging
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI, Request
+import httpx
+from fastapi import Depends, FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from sqlalchemy import text
+from sqlalchemy.ext.asyncio import AsyncSession
 
-from api.routes import agents, analysis, auth, graph, hypothesis, papers, search
+from api.dependencies import get_db
+from api.routes import agents, analysis, auth, graph, hypothesis, papers, search, workspace
 from core.config import get_settings
 from core.model_warmup import start_model_warmup
 from models.database import init_db
@@ -47,6 +50,7 @@ def create_app() -> FastAPI:
     app.include_router(analysis.router, prefix=settings.api_prefix)
     app.include_router(agents.router, prefix=settings.api_prefix)
     app.include_router(agents.chat_router, prefix=settings.api_prefix)
+    app.include_router(workspace.router, prefix=settings.api_prefix)
 
     @app.exception_handler(Exception)
     async def structured_error(request: Request, exc: Exception) -> JSONResponse:
@@ -56,8 +60,33 @@ def create_app() -> FastAPI:
         )
 
     @app.get("/health")
-    async def health() -> dict:
-        return {"status": "ok"}
+    async def health(db: AsyncSession = Depends(get_db)) -> dict:
+        status: dict = {"status": "ok", "components": {}}
+        try:
+            await db.execute(text("SELECT 1"))
+            status["components"]["database"] = "ok"
+        except Exception as exc:
+            status["components"]["database"] = f"error: {exc}"
+            status["status"] = "degraded"
+
+        try:
+            async with httpx.AsyncClient(timeout=3) as client:
+                response = await client.get(f"{settings.ollama_host.rstrip('/')}/api/tags")
+                response.raise_for_status()
+                payload = response.json()
+            model_names = [item.get("name", "") for item in payload.get("models", [])]
+            status["components"]["ollama"] = "ok"
+            status["components"]["models"] = model_names
+            status["components"]["model_ready"] = any("gemma" in name.lower() for name in model_names)
+            if not status["components"]["model_ready"]:
+                status["status"] = "degraded"
+        except Exception as exc:
+            status["components"]["ollama"] = f"error: {exc}"
+            status["components"]["models"] = []
+            status["components"]["model_ready"] = False
+            status["status"] = "degraded"
+
+        return status
 
     return app
 

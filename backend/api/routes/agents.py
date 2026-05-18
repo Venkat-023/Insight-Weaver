@@ -3,7 +3,7 @@ import time
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from api.dependencies import get_db, get_gemma_engine
+from api.dependencies import get_db, get_gemma_engine, get_workspace_id
 from core.gemma_engine import GemmaEngine
 from core.model_warmup import get_model_status, start_model_warmup
 from models.hypothesis import Hypothesis
@@ -58,9 +58,10 @@ async def debate_hypothesis(
     payload: DebateRequest,
     db: AsyncSession = Depends(get_db),
     gemma: GemmaEngine = Depends(get_gemma_engine),
+    workspace_id: str = Depends(get_workspace_id),
 ) -> dict:
     hypothesis = await db.get(Hypothesis, hypothesis_id)
-    if not hypothesis:
+    if not hypothesis or hypothesis.workspace_id != workspace_id:
         raise HTTPException(404, {"error": "Hypothesis not found", "code": "HYPOTHESIS_NOT_FOUND", "detail": str(hypothesis_id)})
     result = MultiAgentDebate(gemma).run_debate(
         {

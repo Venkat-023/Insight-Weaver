@@ -29,6 +29,21 @@ import ForceGraph2D from "react-force-graph-2d";
 import "./styles.css";
 
 const API_BASE = import.meta.env.VITE_API_BASE || "http://127.0.0.1:8000/api/v1";
+const WORKSPACE_KEY = "iw_workspace_id";
+
+function getWorkspaceId() {
+  let workspaceId = sessionStorage.getItem(WORKSPACE_KEY);
+  if (!workspaceId) {
+    workspaceId = crypto?.randomUUID
+      ? crypto.randomUUID()
+      : "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, (char) => {
+          const value = Math.random() * 16 | 0;
+          return (char === "x" ? value : (value & 0x3 | 0x8)).toString(16);
+        });
+    sessionStorage.setItem(WORKSPACE_KEY, workspaceId);
+  }
+  return workspaceId;
+}
 
 function classNames(...items) {
   return items.filter(Boolean).join(" ");
@@ -56,7 +71,9 @@ function MarkdownText({ value }) {
 function useApi() {
   return useMemo(() => {
     async function request(path, options = {}) {
-      const response = await fetch(`${API_BASE}${path}`, options);
+      const headers = new Headers(options.headers || {});
+      headers.set("X-Workspace-ID", getWorkspaceId());
+      const response = await fetch(`${API_BASE}${path}`, { ...options, headers });
       const text = await response.text();
       let data = null;
       if (text) {
@@ -85,7 +102,8 @@ function useApi() {
         const form = new FormData();
         form.append("file", file);
         return request(path, { method: "POST", body: form });
-      }
+      },
+      delete: (path) => request(path, { method: "DELETE" })
     };
   }, []);
 }
@@ -395,7 +413,7 @@ function LoginPage({ api, onLogin }) {
   );
 }
 
-function TopBar({ active, setActive, tabs, modelStatus, refreshModel, user, onLogout, theme, setTheme }) {
+function TopBar({ active, setActive, tabs, modelStatus, refreshModel, user, onLogout, onResetWorkspace, theme, setTheme }) {
   return (
     <header className="topbar">
       <div className="brand-mark">
@@ -419,6 +437,7 @@ function TopBar({ active, setActive, tabs, modelStatus, refreshModel, user, onLo
         </button>
         <button className="icon-btn" onClick={refreshModel} title="Refresh model status"><RefreshCw size={17} /></button>
         <span className="user-chip">{user?.display_name || user?.username}</span>
+        <button className="icon-btn" onClick={onResetWorkspace} title="Reset workspace"><Database size={17} /></button>
         <button className="icon-btn" onClick={onLogout} title="Log out"><LogOut size={17} /></button>
       </div>
     </header>
@@ -1358,7 +1377,21 @@ function App() {
 
   function logout() {
     localStorage.removeItem("sc_user");
+    sessionStorage.removeItem(WORKSPACE_KEY);
     setUser(null);
+  }
+
+  async function resetWorkspace() {
+    try {
+      await api.delete("/workspace/current");
+    } catch (error) {
+      console.error(error);
+    }
+    sessionStorage.removeItem(WORKSPACE_KEY);
+    setPapers([]);
+    setLastResult(null);
+    setActive("upload");
+    refreshPapers();
   }
 
   async function refreshPapers() {
@@ -1408,6 +1441,7 @@ function App() {
         refreshModel={refreshModel}
         user={user}
         onLogout={logout}
+        onResetWorkspace={resetWorkspace}
         theme={theme}
         setTheme={setTheme}
       />

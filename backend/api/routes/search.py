@@ -3,7 +3,7 @@ import time
 from fastapi import APIRouter, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from api.dependencies import get_db, get_vector_store
+from api.dependencies import get_db, get_vector_store, get_workspace_id, validate_paper_belongs_to_workspace
 from core.config import get_settings
 from core.gemma_engine import GemmaEngine
 from retrieval.graph_rag import GraphRAG
@@ -15,9 +15,23 @@ router = APIRouter(prefix="/search", tags=["search"])
 
 
 @router.post("/semantic", response_model=SearchResponse)
-async def semantic_search(payload: SearchRequest, vector_store: VectorStore = Depends(get_vector_store)) -> SearchResponse:
+async def semantic_search(
+    payload: SearchRequest,
+    vector_store: VectorStore = Depends(get_vector_store),
+    db: AsyncSession = Depends(get_db),
+    workspace_id: str = Depends(get_workspace_id),
+) -> SearchResponse:
     started = time.perf_counter()
-    results = SemanticSearch(vector_store).search(payload.query, payload.paper_ids, payload.n_results, payload.section_filter)
+    if payload.paper_ids:
+        for paper_id in payload.paper_ids:
+            await validate_paper_belongs_to_workspace(paper_id, workspace_id, db)
+    results = SemanticSearch(vector_store).search(
+        payload.query,
+        payload.paper_ids,
+        payload.n_results,
+        payload.section_filter,
+        workspace_id=workspace_id,
+    )
     return SearchResponse(
         results=[SearchResultSchema(id=item.id, text=item.text, metadata=item.metadata, similarity_score=item.similarity_score) for item in results],
         total=len(results),
@@ -29,7 +43,11 @@ async def semantic_search(payload: SearchRequest, vector_store: VectorStore = De
 async def graph_rag_search(
     payload: GraphRAGRequest,
     db: AsyncSession = Depends(get_db),
+    workspace_id: str = Depends(get_workspace_id),
 ) -> dict:
+    if payload.paper_ids:
+        for paper_id in payload.paper_ids:
+            await validate_paper_belongs_to_workspace(paper_id, workspace_id, db)
     settings = get_settings()
     summarizer = GemmaEngine(settings.gemma_light_model, timeout_seconds=payload.max_model_seconds) if payload.use_gemma else None
     vector_store = get_vector_store() if payload.use_vector else None
@@ -40,6 +58,7 @@ async def graph_rag_search(
         n_results=payload.n_results,
         include_graph=payload.include_graph,
         use_gemma=payload.use_gemma,
+        workspace_id=workspace_id,
     )
 
 
@@ -47,5 +66,6 @@ async def graph_rag_search(
 async def graph_rag_search_compat(
     payload: GraphRAGRequest,
     db: AsyncSession = Depends(get_db),
+    workspace_id: str = Depends(get_workspace_id),
 ) -> dict:
-    return await graph_rag_search(payload, db)
+    return await graph_rag_search(payload, db, workspace_id)

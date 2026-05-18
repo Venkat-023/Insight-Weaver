@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from api.dependencies import get_db
+from api.dependencies import get_db, get_workspace_id, validate_paper_belongs_to_workspace
 from graph.graph_builder import KnowledgeGraphBuilder
 from models.entity import Entity, EntityRelationship, PaperEntity
 from models.paper import Paper
@@ -21,14 +21,9 @@ def _builder() -> KnowledgeGraphBuilder:
 async def graph_for_entity(
     entity_name: str,
     db: AsyncSession = Depends(get_db),
+    workspace_id: str = Depends(get_workspace_id),
 ) -> dict:
-    try:
-        graph = _builder().get_entity_neighborhood(entity_name, 2)
-        if graph.get("nodes"):
-            return graph
-    except Exception:
-        pass
-    return await _entity_graph_from_postgres(entity_name, db)
+    return await _entity_graph_from_postgres(entity_name, db, workspace_id)
 
 
 @router.get("/{paper_id}")
@@ -36,25 +31,21 @@ async def graph_for_paper(
     paper_id: int,
     include_neighbors: bool = Query(False),
     db: AsyncSession = Depends(get_db),
+    workspace_id: str = Depends(get_workspace_id),
 ) -> dict:
-    try:
-        graph = _builder().export_graph_json([paper_id])
-        if graph.get("nodes"):
-            return graph
-    except Exception:
-        pass
-    return await _paper_graph_from_postgres(paper_id, db)
+    await validate_paper_belongs_to_workspace(paper_id, workspace_id, db)
+    return await _paper_graph_from_postgres(paper_id, db, workspace_id)
 
 
-async def _paper_graph_from_postgres(paper_id: int, db: AsyncSession) -> dict:
+async def _paper_graph_from_postgres(paper_id: int, db: AsyncSession, workspace_id: str) -> dict:
     paper = await db.get(Paper, paper_id)
-    if not paper:
+    if not paper or paper.workspace_id != workspace_id:
         raise HTTPException(404, {"error": "Paper not found", "code": "PAPER_NOT_FOUND", "detail": str(paper_id)})
 
     rows = await db.execute(
         select(Entity, PaperEntity.frequency)
         .join(PaperEntity, PaperEntity.entity_id == Entity.id)
-        .where(PaperEntity.paper_id == paper_id)
+        .where(PaperEntity.paper_id == paper_id, Entity.workspace_id == workspace_id)
         .order_by(PaperEntity.frequency.desc(), Entity.name)
         .limit(80)
     )
@@ -69,7 +60,9 @@ async def _paper_graph_from_postgres(paper_id: int, db: AsyncSession) -> dict:
         }
     ]
     edges = []
+    entity_ids: set[int] = set()
     for entity, frequency in entity_rows:
+        entity_ids.add(entity.id)
         entity_node_id = f"entity-{entity.id}"
         nodes.append(
             {
@@ -88,17 +81,41 @@ async def _paper_graph_from_postgres(paper_id: int, db: AsyncSession) -> dict:
                 "paper_id": paper.id,
             }
         )
+    if entity_ids:
+        rel_rows = await db.execute(
+            select(EntityRelationship)
+            .where(
+                EntityRelationship.source_entity_id.in_(entity_ids),
+                EntityRelationship.target_entity_id.in_(entity_ids),
+            )
+            .order_by(EntityRelationship.confidence.desc())
+            .limit(100)
+        )
+        for rel in rel_rows.scalars().all():
+            source_id = f"entity-{rel.source_entity_id}"
+            target_id = f"entity-{rel.target_entity_id}"
+            if source_id in {node["id"] for node in nodes} and target_id in {node["id"] for node in nodes}:
+                edges.append(
+                    {
+                        "source": source_id,
+                        "target": target_id,
+                        "type": rel.relationship_type,
+                        "confidence": rel.confidence,
+                        "paper_id": rel.paper_id,
+                        "evidence": rel.evidence_text,
+                    }
+                )
     return {"nodes": nodes, "edges": edges}
 
 
-async def _entity_graph_from_postgres(entity_name: str, db: AsyncSession) -> dict:
+async def _entity_graph_from_postgres(entity_name: str, db: AsyncSession, workspace_id: str) -> dict:
     normalized = " ".join(entity_name.lower().split())
     rows = await db.execute(
         select(Entity)
         .where(
+            Entity.workspace_id == workspace_id,
             or_(
                 func.lower(Entity.name) == normalized,
-                Entity.normalized_name == normalized,
                 Entity.name.ilike(f"%{entity_name}%"),
             )
         )
@@ -131,7 +148,7 @@ async def _entity_graph_from_postgres(entity_name: str, db: AsyncSession) -> dic
     paper_rows = await db.execute(
         select(Paper, PaperEntity.entity_id, PaperEntity.frequency)
         .join(PaperEntity, PaperEntity.paper_id == Paper.id)
-        .where(PaperEntity.entity_id.in_(seed_ids))
+        .where(PaperEntity.entity_id.in_(seed_ids), Paper.workspace_id == workspace_id)
         .order_by(PaperEntity.frequency.desc(), Paper.title)
         .limit(24)
     )
@@ -171,6 +188,7 @@ async def _entity_graph_from_postgres(entity_name: str, db: AsyncSession) -> dic
                 EntityRelationship.target_entity_id.in_(seed_ids),
             ),
             ~Entity.id.in_(seed_ids),
+            Entity.workspace_id == workspace_id,
         )
         .order_by(EntityRelationship.confidence.desc())
         .limit(40)
@@ -196,7 +214,7 @@ async def _entity_graph_from_postgres(entity_name: str, db: AsyncSession) -> dic
         co_rows = await db.execute(
             select(Entity, PaperEntity.paper_id, PaperEntity.frequency)
             .join(PaperEntity, PaperEntity.entity_id == Entity.id)
-            .where(PaperEntity.paper_id.in_(paper_ids), ~Entity.id.in_(seed_ids))
+            .where(PaperEntity.paper_id.in_(paper_ids), ~Entity.id.in_(seed_ids), Entity.workspace_id == workspace_id)
             .order_by(PaperEntity.frequency.desc(), Entity.paper_count.desc())
             .limit(48)
         )

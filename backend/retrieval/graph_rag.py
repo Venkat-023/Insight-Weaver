@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import time
+from collections import Counter
 from dataclasses import dataclass
 from typing import Any
 
@@ -83,19 +84,25 @@ class GraphRAG:
         n_results: int = 8,
         include_graph: bool = True,
         use_gemma: bool = False,
+        workspace_id: str | None = None,
     ) -> dict[str, Any]:
         started = time.perf_counter()
         warnings: list[str] = []
-        semantic_results = await self._db_chunk_search(query, db, paper_ids, max(n_results, 8))
+        semantic_results = await self._db_chunk_search(query, db, paper_ids, max(n_results, 8), workspace_id)
         if self.vector_store is not None:
             try:
-                vector_results = SemanticSearch(self.vector_store).search(query, paper_ids, max(n_results, 4))
+                vector_results = SemanticSearch(self.vector_store).search(
+                    query,
+                    paper_ids,
+                    max(n_results, 4),
+                    workspace_id=workspace_id,
+                )
                 semantic_results = self._merge_results(vector_results, semantic_results, max(n_results, 8))
             except Exception as exc:
                 warnings.append(f"Vector rerank failed; used fast database retrieval. Detail: {exc}")
         if not semantic_results:
             warnings.append("No chunk matches found in the local database or vector index.")
-        graph_context = await self._graph_context(query, semantic_results, db, paper_ids) if include_graph else self._empty_graph()
+        graph_context = await self._graph_context(query, semantic_results, db, paper_ids, workspace_id) if include_graph else self._empty_graph()
         expanded_results = self._expanded_retrieval(query, semantic_results, graph_context, paper_ids, n_results)
         model_used = "fast-extractive-graphrag"
         answer = self._fast_answer(query, expanded_results, graph_context)
@@ -139,24 +146,29 @@ class GraphRAG:
         db: AsyncSession,
         paper_ids: list[int] | None,
         n_results: int,
+        workspace_id: str | None = None,
     ) -> list[SearchResult]:
         terms = self._query_terms(query)
         stmt = select(Chunk, Paper).join(Paper, Paper.id == Chunk.paper_id)
+        if workspace_id:
+            stmt = stmt.where(Paper.workspace_id == workspace_id)
         if paper_ids:
             stmt = stmt.where(Chunk.paper_id.in_(paper_ids))
-        if terms:
-            stmt = stmt.where(or_(*(Chunk.content.ilike(f"%{term}%") for term in terms)))
-        stmt = stmt.order_by(Chunk.importance_score.desc()).limit(max(n_results * 4, 20))
+        stmt = stmt.where(Chunk.importance_score >= 0.4).order_by(Chunk.importance_score.desc()).limit(200)
         rows = (await db.execute(stmt)).all()
-        if not rows and terms:
-            stmt = select(Chunk, Paper).join(Paper, Paper.id == Chunk.paper_id)
-            if paper_ids:
-                stmt = stmt.where(Chunk.paper_id.in_(paper_ids))
-            stmt = stmt.order_by(Chunk.importance_score.desc()).limit(max(n_results * 4, 20))
-            rows = (await db.execute(stmt)).all()
+        if not terms:
+            rows = rows[: max(n_results * 2, 12)]
         scored: list[SearchResult] = []
+        avg_dl = sum(len(chunk.content.split()) for chunk, _ in rows) / max(len(rows), 1)
         for chunk, paper in rows:
-            score = self._lexical_score(query, chunk.content) + float(chunk.importance_score or 0) * 0.15
+            bm25 = self._bm25_score(terms, chunk.content, avg_dl)
+            if terms and bm25 <= 0:
+                continue
+            score = (
+                0.45 * min(bm25 / max(len(terms), 1), 1.0)
+                + 0.40 * float(chunk.importance_score or 0)
+                + 0.15 * self._lexical_score(query, chunk.content)
+            )
             scored.append(
                 SearchResult(
                     id=chunk.chroma_embedding_id or f"db-{chunk.id}",
@@ -171,7 +183,7 @@ class GraphRAG:
                         "arxiv_id": paper.arxiv_id or "",
                         "source": "database",
                     },
-                    similarity_score=score,
+                    similarity_score=round(score, 4),
                 )
             )
         return sorted(scored, key=lambda item: item.similarity_score, reverse=True)[:n_results]
@@ -182,14 +194,15 @@ class GraphRAG:
         results: list[SearchResult],
         db: AsyncSession,
         paper_ids: list[int] | None,
+        workspace_id: str | None = None,
     ) -> dict[str, Any]:
         candidate_paper_ids = paper_ids or self._paper_ids_from_results(results)
-        entities = self._filter_entities(await self._candidate_entities(query, candidate_paper_ids, db))
+        entities = self._filter_entities(await self._candidate_entities(query, candidate_paper_ids, db, workspace_id))
         facts = await self._relationship_facts([entity.id for entity in entities], candidate_paper_ids, db)
         if len(facts) < 4:
             co_mentions = await self._co_mention_facts([entity.id for entity in entities], candidate_paper_ids, db)
             facts = self._merge_facts(facts, co_mentions, 32)
-        papers = await self._papers(candidate_paper_ids, db)
+        papers = await self._papers(candidate_paper_ids, db, workspace_id)
         return {
             "entities": [
                 {
@@ -204,28 +217,38 @@ class GraphRAG:
             "papers": papers,
         }
 
-    async def _candidate_entities(self, query: str, paper_ids: list[int], db: AsyncSession) -> list[Entity]:
+    async def _candidate_entities(self, query: str, paper_ids: list[int], db: AsyncSession, workspace_id: str | None = None) -> list[Entity]:
         by_paper: list[Entity] = []
         if paper_ids:
-            rows = await db.execute(
+            stmt = (
                 select(Entity)
                 .join(PaperEntity, PaperEntity.entity_id == Entity.id)
                 .where(PaperEntity.paper_id.in_(paper_ids))
                 .order_by(PaperEntity.frequency.desc(), Entity.paper_count.desc())
                 .limit(24)
             )
+            if workspace_id:
+                stmt = stmt.where(Entity.workspace_id == workspace_id)
+            rows = await db.execute(stmt)
             by_paper = list(rows.scalars().all())
 
         terms = self._query_terms(query)
         by_name: list[Entity] = []
         if terms:
-            rows = await db.execute(
+            stmt = (
                 select(Entity)
                 .where(or_(*(Entity.normalized_name.ilike(f"%{term}%") for term in terms)))
                 .order_by(Entity.paper_count.desc())
                 .limit(16)
             )
+            name_stmt = select(Entity).where(or_(*(Entity.name.ilike(f"%{term}%") for term in terms))).order_by(Entity.paper_count.desc()).limit(16)
+            if workspace_id:
+                stmt = stmt.where(Entity.workspace_id == workspace_id)
+                name_stmt = name_stmt.where(Entity.workspace_id == workspace_id)
+            rows = await db.execute(stmt)
             by_name = list(rows.scalars().all())
+            name_rows = await db.execute(name_stmt)
+            by_name.extend(list(name_rows.scalars().all()))
 
         merged: dict[int, Entity] = {}
         for entity in [*by_name, *by_paper]:
@@ -334,10 +357,13 @@ class GraphRAG:
                         return facts
         return self._filter_facts(facts)
 
-    async def _papers(self, paper_ids: list[int], db: AsyncSession) -> list[dict[str, Any]]:
+    async def _papers(self, paper_ids: list[int], db: AsyncSession, workspace_id: str | None = None) -> list[dict[str, Any]]:
         if not paper_ids:
             return []
-        rows = await db.execute(select(Paper).where(Paper.id.in_(paper_ids)).limit(20))
+        stmt = select(Paper).where(Paper.id.in_(paper_ids)).limit(20)
+        if workspace_id:
+            stmt = stmt.where(Paper.workspace_id == workspace_id)
+        rows = await db.execute(stmt)
         return [
             {
                 "id": paper.id,
@@ -516,9 +542,27 @@ Answer requirements:
 
     @staticmethod
     def _query_terms(query: str) -> list[str]:
-        stopwords = {"and", "the", "for", "with", "from", "that", "this", "into", "using", "about", "what", "does", "show"}
+        stopwords = {
+            "and", "the", "for", "with", "from", "that", "this", "into", "using", "about", "what", "does", "show",
+            "study", "paper", "method", "result", "data", "model", "approach", "analysis", "also", "however",
+        }
         terms = [term.lower().strip(" ,.;:()[]{}?") for term in re.split(r"\W+", query)]
         return [term for term in terms if len(term) >= 4 and term not in stopwords][:8]
+
+    @staticmethod
+    def _bm25_score(query_terms: list[str], text: str, avg_dl: float) -> float:
+        if not query_terms:
+            return 0.4
+        k1, b = 1.5, 0.75
+        words = re.findall(r"\b[a-z0-9-]+\b", text.lower())
+        dl = max(len(words), 1)
+        counts = Counter(words)
+        score = 0.0
+        for term in query_terms:
+            tf = counts.get(term, 0)
+            if tf:
+                score += tf * (k1 + 1) / (tf + k1 * (1 - b + b * dl / max(avg_dl, 1)))
+        return score
 
     @classmethod
     def _valid_entity_name(cls, name: str) -> bool:

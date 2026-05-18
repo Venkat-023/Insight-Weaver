@@ -17,6 +17,7 @@ class Paper(Base):
     __tablename__ = "papers"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    workspace_id: Mapped[str] = mapped_column(String(36), index=True, default="legacy", nullable=False)
     title: Mapped[str] = mapped_column(String(500), nullable=False)
     authors: Mapped[list[str]] = mapped_column(JsonType, default=list)
     abstract: Mapped[str | None] = mapped_column(Text)

@@ -10,6 +10,7 @@ class Entity(Base):
     __table_args__ = (UniqueConstraint("normalized_name", "entity_type", name="uq_entity_name_type"),)
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    workspace_id: Mapped[str] = mapped_column(String(36), index=True, default="legacy", nullable=False)
     name: Mapped[str] = mapped_column(String(300), nullable=False)
     normalized_name: Mapped[str] = mapped_column(String(300), nullable=False)
     entity_type: Mapped[str] = mapped_column(String(50), nullable=False)

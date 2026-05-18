@@ -9,6 +9,7 @@ class Hypothesis(Base):
     __tablename__ = "hypotheses"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    workspace_id: Mapped[str] = mapped_column(String(36), index=True, default="legacy", nullable=False)
     hypothesis_text: Mapped[str] = mapped_column(Text, nullable=False)
     reasoning: Mapped[str] = mapped_column(Text, nullable=False)
     confidence_score: Mapped[float] = mapped_column(Float, nullable=False)
@@ -29,6 +30,7 @@ class Contradiction(Base):
     __tablename__ = "contradictions"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    workspace_id: Mapped[str] = mapped_column(String(36), index=True, default="legacy", nullable=False)
     paper_a_id: Mapped[int] = mapped_column(ForeignKey("papers.id"))
     paper_b_id: Mapped[int] = mapped_column(ForeignKey("papers.id"))
     severity: Mapped[str] = mapped_column(String(10), nullable=False)

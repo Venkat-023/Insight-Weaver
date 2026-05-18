@@ -25,6 +25,12 @@ settings = get_settings()
 celery_app = Celery("scientific_discovery", broker=settings.celery_broker_url, backend=settings.celery_result_backend)
 
 
+def _scoped_normalized(workspace_id: str, name: str) -> str:
+    compact = " ".join(name.lower().strip().split())
+    compact = compact.replace(" ", "").replace("-", "").replace("_", "")
+    return f"{workspace_id}:{compact}"
+
+
 @celery_app.task(name="tasks.paper_processing.process_paper", bind=True, max_retries=2)
 def process_paper(self, paper_id: int) -> dict:
     import asyncio
@@ -90,7 +96,7 @@ async def _process_paper_async(paper_id: int) -> dict:
             extraction = ScientificEntityExtractor().extract(chunks)
             entity_name_to_id: dict[str, int] = {}
             entity_keys = {
-                (entity_type, name.lower().strip())
+                (entity_type, _scoped_normalized(paper.workspace_id, name))
                 for entity_type, names in extraction.entities.items()
                 for name in names
             }
@@ -107,13 +113,19 @@ async def _process_paper_async(paper_id: int) -> dict:
                 }
             for entity_type, names in extraction.entities.items():
                 for name in names:
-                    normalized = name.lower().strip()
+                    normalized = _scoped_normalized(paper.workspace_id, name)
                     existing = existing_entities.get((entity_type, normalized))
                     if existing:
                         existing.paper_count += 1
                         entity = existing
                     else:
-                        entity = Entity(name=name, normalized_name=normalized, entity_type=entity_type, aliases=[])
+                        entity = Entity(
+                            workspace_id=paper.workspace_id,
+                            name=name,
+                            normalized_name=normalized,
+                            entity_type=entity_type,
+                            aliases=[],
+                        )
                         db.add(entity)
                         await db.flush()
                         existing_entities[(entity_type, normalized)] = entity
@@ -185,7 +197,13 @@ async def _process_paper_async(paper_id: int) -> dict:
                     VectorStore().add_chunks(
                         paper.id,
                         chunks,
-                        {"title": paper.title, "year": paper.publication_year, "authors": paper.authors or [], "arxiv_id": paper.arxiv_id},
+                        {
+                            "title": paper.title,
+                            "year": paper.publication_year,
+                            "authors": paper.authors or [],
+                            "arxiv_id": paper.arxiv_id,
+                            "workspace_id": paper.workspace_id,
+                        },
                     )
                 except Exception:
                     logger.exception("vector_index_failed", extra={"paper_id": paper.id})

@@ -5,7 +5,7 @@ from fastapi import APIRouter, BackgroundTasks, Depends, File, HTTPException, Qu
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from api.dependencies import get_db, settings_dep
+from api.dependencies import get_db, get_workspace_id, settings_dep, validate_paper_belongs_to_workspace
 from core.config import Settings
 from models.entity import PaperEntity
 from models.paper import Chunk, Paper, ProcessingStatus
@@ -20,15 +20,16 @@ async def upload_paper(
     background_tasks: BackgroundTasks,
     file: UploadFile = File(...),
     db: AsyncSession = Depends(get_db),
+    workspace_id: str = Depends(get_workspace_id),
     settings: Settings = Depends(settings_dep),
 ) -> PaperUploadResponse:
     if not file.filename or not file.filename.lower().endswith(".pdf"):
         raise HTTPException(400, {"error": "Only PDF uploads are supported", "code": "INVALID_FILE", "detail": file.filename})
-    upload_dir = Path(settings.uploads_dir)
+    upload_dir = Path(settings.uploads_dir) / workspace_id
     upload_dir.mkdir(parents=True, exist_ok=True)
     path = upload_dir / f"{uuid4()}_{file.filename}"
     path.write_bytes(await file.read())
-    paper = Paper(title=file.filename, authors=[], pdf_path=str(path), processing_status=ProcessingStatus.pending)
+    paper = Paper(workspace_id=workspace_id, title=file.filename, authors=[], pdf_path=str(path), processing_status=ProcessingStatus.pending)
     db.add(paper)
     await db.commit()
     await db.refresh(paper)
@@ -48,9 +49,16 @@ async def ingest_arxiv(
     payload: ArxivIngestRequest,
     background_tasks: BackgroundTasks,
     db: AsyncSession = Depends(get_db),
+    workspace_id: str = Depends(get_workspace_id),
     settings: Settings = Depends(settings_dep),
 ) -> PaperUploadResponse:
-    paper = Paper(title=f"arXiv:{payload.arxiv_id}", authors=[], arxiv_id=payload.arxiv_id, processing_status=ProcessingStatus.pending)
+    paper = Paper(
+        workspace_id=workspace_id,
+        title=f"arXiv:{payload.arxiv_id}",
+        authors=[],
+        arxiv_id=payload.arxiv_id,
+        processing_status=ProcessingStatus.pending,
+    )
     db.add(paper)
     await db.commit()
     await db.refresh(paper)
@@ -71,18 +79,21 @@ async def list_papers(
     offset: int = Query(0, ge=0),
     status: str | None = None,
     db: AsyncSession = Depends(get_db),
+    workspace_id: str = Depends(get_workspace_id),
 ) -> list[PaperSummary]:
-    stmt = select(Paper).offset(offset).limit(limit).order_by(Paper.uploaded_at.desc())
+    stmt = select(Paper).where(Paper.workspace_id == workspace_id).offset(offset).limit(limit).order_by(Paper.uploaded_at.desc())
     if status:
         stmt = stmt.where(Paper.processing_status == status)
     return list((await db.execute(stmt)).scalars().all())
 
 
 @router.get("/{paper_id}", response_model=PaperDetail)
-async def get_paper(paper_id: int, db: AsyncSession = Depends(get_db)) -> PaperDetail:
-    paper = await db.get(Paper, paper_id)
-    if not paper:
-        raise HTTPException(404, {"error": "Paper not found", "code": "PAPER_NOT_FOUND", "detail": str(paper_id)})
+async def get_paper(
+    paper_id: int,
+    db: AsyncSession = Depends(get_db),
+    workspace_id: str = Depends(get_workspace_id),
+) -> PaperDetail:
+    paper = await validate_paper_belongs_to_workspace(paper_id, workspace_id, db)
     chunks_count = await db.scalar(select(func.count()).select_from(Chunk).where(Chunk.paper_id == paper_id))
     entities_count = await db.scalar(select(func.count()).select_from(PaperEntity).where(PaperEntity.paper_id == paper_id))
     return PaperDetail(
@@ -103,10 +114,12 @@ async def get_paper(paper_id: int, db: AsyncSession = Depends(get_db)) -> PaperD
 
 
 @router.get("/{paper_id}/status", response_model=PaperStatusResponse)
-async def get_status(paper_id: int, db: AsyncSession = Depends(get_db)) -> PaperStatusResponse:
-    paper = await db.get(Paper, paper_id)
-    if not paper:
-        raise HTTPException(404, {"error": "Paper not found", "code": "PAPER_NOT_FOUND", "detail": str(paper_id)})
+async def get_status(
+    paper_id: int,
+    db: AsyncSession = Depends(get_db),
+    workspace_id: str = Depends(get_workspace_id),
+) -> PaperStatusResponse:
+    paper = await validate_paper_belongs_to_workspace(paper_id, workspace_id, db)
     chunks_count = await db.scalar(select(func.count()).select_from(Chunk).where(Chunk.paper_id == paper_id))
     entities_count = await db.scalar(select(func.count()).select_from(PaperEntity).where(PaperEntity.paper_id == paper_id))
     return PaperStatusResponse(
