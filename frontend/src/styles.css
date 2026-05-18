@@ -62,7 +62,7 @@
 }
 
 body {
-  font-family: 'Inter', system-ui, sans-serif;
+  font-family: Garamond, serif;
   background: var(--paper);
   color: var(--ink);
   min-height: 100vh;
@@ -72,7 +72,7 @@ body {
 }
 
 h1, h2, h3, .brand-name {
-  font-family: 'Inter', system-ui, sans-serif;
+  font-family: Garamond, serif;
   font-weight: 700;
   letter-spacing: -0.03em;
 }
@@ -118,7 +118,7 @@ main,
   width: 36px; height: 36px; border-radius: 8px;
   background: linear-gradient(135deg, var(--ink), var(--muted));
   display: grid; place-items: center;
-  font-family: 'Inter', system-ui, sans-serif;
+  font-family: Garamond, serif;
   font-size: 14px; font-weight: 800;
   color: var(--paper); flex-shrink: 0;
   box-shadow: 0 4px 12px rgba(26, 18, 8, 0.18);
@@ -572,7 +572,7 @@ select[multiple] { min-height: 100px; }
 /* ─── Markdown Body ─── */
 .markdown-body { color: var(--ink); line-height: 1.75; font-size: 15px; }
 .markdown-body h1, .markdown-body h2, .markdown-body h3, .markdown-body h4 {
-  font-family: 'Inter', system-ui, sans-serif; color: var(--ink);
+  font-family: Garamond, serif; color: var(--ink);
   font-weight: 700; letter-spacing: -0.02em;
   margin: 24px 0 12px; line-height: 1.25;
 }
