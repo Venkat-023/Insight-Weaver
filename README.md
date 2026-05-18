@@ -40,6 +40,23 @@ Insight Weaver addresses this gap by treating PDFs as structured scientific evid
 - Detect contradictions and unexplored connections across selected papers.
 - Give every public visitor a private anonymous workspace so they never see another visitor's papers, graph, hypotheses, or analysis results.
 
+## UI Sections
+
+The frontend exposes the research workflow as separate workspace sections:
+
+- `Workspace` for PDF upload and ingestion progress.
+- `Library` for reviewing indexed papers, parsed metadata, and processing status.
+- `GraphRAG` for asking evidence-grounded questions over retrieved chunks plus graph context.
+- `Knowledge Graph` for directly exploring the stored graph by paper or by entity.
+- `Hypotheses` for generating testable, evidence-backed research hypotheses from uploaded papers.
+- `Cross-Paper Analysis` for contradiction checks, connection discovery, and topic landscape review.
+- `Discovery` for turning the latest GraphRAG result into a compact research brief.
+
+Important distinction:
+
+- `GraphRAG` is the question-answering surface. It retrieves evidence, synthesizes an answer, and shows the answer-specific evidence graph.
+- `Knowledge Graph` is the graph exploration surface. It lets the user inspect stored nodes and edges directly without first asking a question.
+
 ## Why It Is Different
 
 Insight Weaver is not a PDF chatbot. It is a scientific claim and evidence pipeline.
