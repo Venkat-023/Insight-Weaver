@@ -1413,6 +1413,8 @@ function App() {
 
   const navigationItems = [
     { id: "upload", label: "Workspace", icon: Upload, ariaLabel: "Open workspace tools" },
+    { id: "graphrag", label: "GraphRAG", icon: Search, ariaLabel: "Open GraphRAG search" },
+    { id: "hypothesis", label: "Hypotheses", icon: FlaskConical, ariaLabel: "Open hypothesis generation" },
     { id: "analysis", label: "Cross-Paper Analysis", icon: Activity, emphasized: true, ariaLabel: "Open cross-paper analysis" },
     { id: "library", label: "Library", icon: Database, ariaLabel: "Open library" },
     { id: "graph", label: "Knowledge Graph", icon: Network, ariaLabel: "Open knowledge graph" },
@@ -1448,6 +1450,8 @@ function App() {
             />
           )}
           {active === "library" && <LibraryPanel papers={papers} refreshPapers={refreshPapers} api={api} />}
+          {active === "graphrag" && <GraphRagPanel api={api} papers={papers} setLastResult={setLastResult} />}
+          {active === "hypothesis" && <HypothesisPanel api={api} papers={papers} />}
           {active === "studio" && <DiscoveryPanel lastResult={lastResult} />}
           {active === "graph" && <KnowledgeGraphPanel api={api} papers={papers} />}
           {active === "analysis" && <AnalysisPanel api={api} papers={papers} />}
