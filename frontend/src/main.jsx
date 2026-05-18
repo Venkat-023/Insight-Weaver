@@ -9,7 +9,6 @@ import {
   FlaskConical,
   GitBranch,
   Loader2,
-  LogOut,
   Maximize2,
   Network,
   Pause,
@@ -23,6 +22,7 @@ import {
 } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import ForceGraph2D from "react-force-graph-2d";
+import StaggeredMenu from "./StaggeredMenu";
 import "./styles.css";
 
 const API_BASE = import.meta.env.VITE_API_BASE || "http://127.0.0.1:8000/api/v1";
@@ -397,7 +397,6 @@ function LoginPage({ api, onLogin, initialMode = "login" }) {
         <div className="login-art__inner">
           <p className="login-brand">Insight Weaver</p>
           <p className="login-subtitle">Research into Relationships</p>
-          <h1>Research intelligence, organized.</h1>
           <p className="login-support">Upload papers, build knowledge graphs, ask evidence-grounded questions, and generate testable hypotheses {"—"} powered by Gemma.</p>
         </div>
       </section>
@@ -426,43 +425,6 @@ function LoginPage({ api, onLogin, initialMode = "login" }) {
   );
 }
 
-function TopBar({ active, setActive, tabs, modelStatus, refreshModel, user, onLogout, onResetWorkspace, theme, setTheme }) {
-  return (
-    <header className="topbar">
-      <div className="brand-mark">
-        <div className="logo">SC</div>
-        <div>
-          <span className="brand-name">Discovery Copilot</span>
-          <span>Gemma · GraphRAG · Ollama</span>
-        </div>
-      </div>
-      <nav className="top-tabs">
-        {tabs.map(([id, label, Icon]) => (
-          <button key={id} className={active === id ? "active" : ""} onClick={() => setActive(id)}>
-            <span className="spn2"><Icon size={17} /> {label}</span>
-          </button>
-        ))}
-      </nav>
-      <div className="top-actions">
-        <StatusPill status={modelStatus?.status || "unknown"} />
-        <label className="switch" title={`Switch to ${theme === "dark" ? "light" : "dark"} mode`}>
-          <input
-            type="checkbox"
-            checked={theme === "dark"}
-            onChange={(event) => setTheme(event.target.checked ? "dark" : "light")}
-            aria-label="Toggle dark mode"
-          />
-          <span className="slider"></span>
-        </label>
-        <button className="icon-btn" onClick={refreshModel} title="Refresh model status"><span className="spn2"><RefreshCw size={17} /></span></button>
-        <span className="user-chip">{user?.display_name || user?.username}</span>
-        <button className="icon-btn" onClick={onResetWorkspace} title="Reset workspace"><span className="spn2"><Database size={17} /></span></button>
-        <button className="icon-btn" onClick={onLogout} title="Log out"><span className="spn2"><LogOut size={17} /></span></button>
-      </div>
-    </header>
-  );
-}
-
 function Hero({ papers }) {
   const completed = papers.filter((paper) => paper.processing_status === "completed").length;
   const processing = papers.filter((paper) => paper.processing_status === "processing").length;
@@ -471,9 +433,9 @@ function Hero({ papers }) {
   return (
     <section className="hero">
       <div className="hero-copy">
-        <span className="eyebrow">GraphRAG · Knowledge Graphs · Gemma AI</span>
-        <h1>Scientific Discovery Copilot</h1>
-        <p>Upload research papers, build concept graphs, ask grounded questions, and turn retrieval into testable hypotheses.</p>
+        <span className="eyebrow">Cross-Paper Intelligence - Knowledge Graphs - Gemma AI</span>
+        <h1>Insight Weaver</h1>
+        <p>Connected research for evidence-grounded discovery, relationship mapping, and scientific insight generation.</p>
       </div>
       <div className="hero-grid">
         <StatCard label="Papers indexed" value={papers.length} icon={Database} />
@@ -485,7 +447,7 @@ function Hero({ papers }) {
   );
 }
 
-function UploadPanel({ api, refreshPapers }) {
+function UploadPanel({ api, refreshPapers, onUploadSuccess, onViewUploadedPapers }) {
   const [file, setFile] = useState(null);
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState(null);
@@ -511,6 +473,7 @@ function UploadPanel({ api, refreshPapers }) {
       const data = await api.upload("/papers/upload", file);
       setResult(data);
       refreshPapers();
+      onUploadSuccess?.();
       await pollStatus(data.paper_id);
       pollRef.current = setInterval(() => pollStatus(data.paper_id).catch(console.error), 5000);
     } catch (error) {
@@ -547,6 +510,11 @@ function UploadPanel({ api, refreshPapers }) {
             <LoadingButton busy={busy} icon={Upload} onClick={uploadPaper} className="btn-primary" disabled={!file}>
               Upload and process
             </LoadingButton>
+          </div>
+          <div style={{ marginTop: 10 }}>
+            <button type="button" className="btn btn-secondary" onClick={onViewUploadedPapers}>
+              <span className="spn2">View uploaded papers</span>
+            </button>
           </div>
           {file && <div className="file-note"><FileText size={14} /> {file.name} selected</div>}
         </div>
@@ -1375,7 +1343,7 @@ function App() {
     const stored = localStorage.getItem("sc_user");
     return stored ? JSON.parse(stored) : null;
   });
-  const [active, setActive] = useState("upload");
+  const [active, setActive] = useState("analysis");
   const [papers, setPapers] = useState([]);
   const [modelStatus, setModelStatus] = useState(null);
   const [lastResult, setLastResult] = useState(null);
@@ -1415,7 +1383,7 @@ function App() {
     sessionStorage.removeItem(WORKSPACE_KEY);
     setPapers([]);
     setLastResult(null);
-    setActive("upload");
+    setActive("analysis");
     refreshPapers();
   }
 
@@ -1443,14 +1411,12 @@ function App() {
     }
   }, [user]);
 
-  const tabs = [
-    ["upload", "Upload", Upload],
-    ["library", "Library", Database],
-    ["graphrag", "GraphRAG", Search],
-    ["studio", "Studio", Sparkles],
-    ["graph", "Graph", Network],
-    ["hypothesis", "Hypotheses", FlaskConical],
-    ["analysis", "Analysis", Activity]
+  const navigationItems = [
+    { id: "upload", label: "Workspace", icon: Upload, ariaLabel: "Open workspace tools" },
+    { id: "analysis", label: "Cross-Paper Analysis", icon: Activity, emphasized: true, ariaLabel: "Open cross-paper analysis" },
+    { id: "library", label: "Library", icon: Database, ariaLabel: "Open library" },
+    { id: "graph", label: "Knowledge Graph", icon: Network, ariaLabel: "Open knowledge graph" },
+    { id: "studio", label: "Discovery", icon: Sparkles, ariaLabel: "Open discovery workspace" }
   ];
 
   if (showIntro) return <InsightWeaverIntro onSelectAuth={openAuth} />;
@@ -1458,27 +1424,32 @@ function App() {
 
   return (
     <div className="app-shell">
-      <TopBar
-        active={active}
-        setActive={setActive}
-        tabs={tabs}
+      <StaggeredMenu
+        position="left"
+        items={navigationItems}
+        activeItem={active}
+        onItemSelect={setActive}
         modelStatus={modelStatus}
-        refreshModel={refreshModel}
+        onRefreshModel={refreshModel}
         user={user}
         onLogout={logout}
         onResetWorkspace={resetWorkspace}
         theme={theme}
         setTheme={setTheme}
       />
-      <main>
-        <Hero papers={papers} />
+      <main className="workspace-main">
         <div className="page-frame">
-          {active === "upload" && <UploadPanel api={api} refreshPapers={refreshPapers} />}
+          {active === "upload" && (
+            <UploadPanel
+              api={api}
+              refreshPapers={refreshPapers}
+              onUploadSuccess={() => setActive("analysis")}
+              onViewUploadedPapers={() => setActive("library")}
+            />
+          )}
           {active === "library" && <LibraryPanel papers={papers} refreshPapers={refreshPapers} api={api} />}
-          {active === "graphrag" && <GraphRagPanel api={api} papers={papers} setLastResult={setLastResult} />}
           {active === "studio" && <DiscoveryPanel lastResult={lastResult} />}
           {active === "graph" && <KnowledgeGraphPanel api={api} papers={papers} />}
-          {active === "hypothesis" && <HypothesisPanel api={api} papers={papers} />}
           {active === "analysis" && <AnalysisPanel api={api} papers={papers} />}
         </div>
       </main>

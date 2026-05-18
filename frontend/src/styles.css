@@ -24,9 +24,10 @@
   --shadow-md: 0 8px 18px -10px rgba(26, 18, 8, 0.14), 0 4px 10px -8px rgba(26, 18, 8, 0.1);
   --shadow-lg: 0 18px 36px -18px rgba(26, 18, 8, 0.18), 0 10px 24px -20px rgba(26, 18, 8, 0.12);
   --shadow-hover: 0 22px 40px -20px rgba(26, 18, 8, 0.22), 0 10px 24px -18px rgba(26, 18, 8, 0.14);
-  --button-face: #1a1208;
   --button-border: #1a1208;
+  --button-bg: #1a1208;
   --button-text: #f2ece0;
+  --button-hover-bg: #f2ece0;
   --button-hover-text: #1a1208;
 }
 
@@ -42,9 +43,10 @@
   --shadow-md: 0 8px 18px -10px rgba(0, 0, 0, 0.55), 0 4px 10px -8px rgba(0, 0, 0, 0.4);
   --shadow-lg: 0 18px 36px -18px rgba(0, 0, 0, 0.62), 0 10px 24px -20px rgba(0, 0, 0, 0.5);
   --shadow-hover: 0 22px 40px -20px rgba(0, 0, 0, 0.7), 0 10px 24px -18px rgba(0, 0, 0, 0.5);
-  --button-face: #f5efe4;
   --button-border: #f5efe4;
+  --button-bg: #f5efe4;
   --button-text: #12100d;
+  --button-hover-bg: #12100d;
   --button-hover-text: #f5efe4;
 }
 
@@ -78,14 +80,19 @@ button { cursor: pointer; font-family: inherit; }
 input, select, textarea { font-family: inherit; }
 
 /* ─── App Shell ─── */
-.app-shell { min-height: 100vh; background: var(--paper); }
+.app-shell {
+  min-height: 100vh;
+  background: var(--paper);
+}
 
-main {
-  max-width: 1380px;
-  margin: 0 auto;
-  padding: 28px 24px 60px;
+main,
+.workspace-main {
+  max-width: none;
+  margin-left: clamp(260px, 24vw, 284px);
+  padding: 28px 28px 60px;
   animation: fadeSlideUp 0.6s cubic-bezier(0.16, 1, 0.3, 1);
 }
+
 
 /* ─── Topbar ─── */
 .topbar {
@@ -137,11 +144,11 @@ main {
 
 .top-tabs button.active::before,
 .top-tabs button.active::after {
-  transform: translateY(-25px);
-  height: 0;
+  content: none;
 }
 
 .top-tabs button.active {
+  background-color: var(--button-hover-bg);
   color: var(--button-hover-text);
 }
 
@@ -226,7 +233,6 @@ main {
 .top-tabs button,
 .login-toggle,
 .intro-auth-btn {
-  position: relative;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -239,62 +245,8 @@ main {
   font-weight: 600;
   font-size: 14px;
   letter-spacing: 0.08em;
-  transition: 0.3s;
-  background-color: transparent;
+  background-color: var(--button-bg);
   cursor: pointer;
-  overflow: hidden;
-}
-
-.btn::before,
-.icon-btn::before,
-.top-tabs button::before,
-.login-toggle::before,
-.intro-auth-btn::before {
-  content: "";
-  position: absolute;
-  top: -2px;
-  left: -2px;
-  width: calc(100% + 6px);
-  height: calc(100% + 2px);
-  background-color: var(--button-face);
-  transition: 0.3s ease-out;
-  transform: scaleY(1);
-  z-index: 1;
-}
-
-.btn::after,
-.icon-btn::after,
-.top-tabs button::after,
-.login-toggle::after,
-.intro-auth-btn::after {
-  content: "";
-  position: absolute;
-  top: -2px;
-  left: -2px;
-  width: calc(100% + 4px);
-  height: calc(100% - 26px);
-  background-color: var(--button-face);
-  transition: 0.3s ease-out;
-  transform: scaleY(1);
-  z-index: 1;
-}
-
-.btn:hover::before,
-.icon-btn:hover::before,
-.top-tabs button:hover::before,
-.login-toggle:hover::before,
-.intro-auth-btn:hover::before {
-  transform: translateY(-25px);
-  height: 0;
-}
-
-.btn:hover::after,
-.icon-btn:hover::after,
-.top-tabs button:hover::after,
-.login-toggle:hover::after,
-.intro-auth-btn:hover::after {
-  transform: scaleX(0);
-  transition-delay: 0.15s;
 }
 
 .btn:hover,
@@ -302,6 +254,7 @@ main {
 .top-tabs button:hover,
 .login-toggle:hover,
 .intro-auth-btn:hover {
+  background-color: var(--button-hover-bg);
   color: var(--button-hover-text);
 }
 
@@ -338,10 +291,6 @@ main {
   height: 44px;
   padding: 0;
   flex-shrink: 0;
-}
-
-.icon-btn::after {
-  height: calc(100% - 22px);
 }
 
 .intro-auth-btn {
@@ -863,6 +812,11 @@ select[multiple] { min-height: 100px; }
   .top-tabs { padding: 0; }
   .brand-mark { border-right: none; min-width: 0; }
   .top-actions { border-left: none; }
+  main,
+  .workspace-main {
+    margin-left: 0;
+    padding: 88px 20px 48px;
+  }
   .hero { grid-template-columns: 1fr; padding: 32px; }
   .hero-grid { grid-template-columns: repeat(4, 1fr); }
   .split-panel { grid-template-columns: 1fr; }
@@ -874,7 +828,8 @@ select[multiple] { min-height: 100px; }
 }
 
 @media (max-width: 680px) {
-  main { padding: 16px 14px 40px; }
+  main,
+  .workspace-main { padding: 82px 14px 40px; }
   .page-card { padding: 24px; }
   .hero { padding: 24px; }
   .metric-grid, .result-metrics, .hero-grid { grid-template-columns: repeat(2, 1fr); }
