@@ -9,7 +9,9 @@ import {
   FlaskConical,
   GitBranch,
   Loader2,
+  LogOut,
   Maximize2,
+  MessageCircle,
   Network,
   Pause,
   Play,
@@ -18,11 +20,13 @@ import {
   Send,
   Sparkles,
   Upload,
-  Zap
+  UserRound,
+  Zap,
+  Moon,
+  Sun
 } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import ForceGraph2D from "react-force-graph-2d";
-import StaggeredMenu from "./StaggeredMenu";
 import "./styles.css";
 
 const API_BASE = import.meta.env.VITE_API_BASE || "http://127.0.0.1:8000/api/v1";
@@ -108,10 +112,8 @@ function useApi() {
 function LoadingButton({ busy, children, icon: Icon, ...props }) {
   return (
     <button {...props} disabled={busy || props.disabled} className={classNames("btn", props.className)}>
-      <span className="spn2">
-        {busy ? <Loader2 className="spin" size={17} /> : Icon ? <Icon size={17} /> : null}
-        {children}
-      </span>
+      {busy ? <Loader2 className="spin" size={17} /> : Icon ? <Icon size={17} /> : null}
+      {children}
     </button>
   );
 }
@@ -156,7 +158,7 @@ function EmptyState({ title, children, icon: Icon = Sparkles }) {
   );
 }
 
-function InsightWeaverIntro({ onSelectAuth }) {
+function InsightWeaverIntro({ onComplete }) {
   const wrapRef = useRef(null);
   const canvasRef = useRef(null);
   const ttlRef = useRef(null);
@@ -176,8 +178,8 @@ function InsightWeaverIntro({ onSelectAuth }) {
     function ease(t) { return t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t; }
     function lerp(a, b, t) { return a + (b - a) * t; }
     function hr(h) { return { r: parseInt(h.slice(1,3),16), g: parseInt(h.slice(3,5),16), b: parseInt(h.slice(5,7),16) }; }
-    const NCOLS = ['#1a1208', '#7a6040', '#f2ece0', '#7a6040', '#1a1208', '#7a6040', '#f2ece0', '#1a1208', '#7a6040', '#f2ece0', '#1a1208', '#7a6040', '#f2ece0'];
-    const ECOLS = ['#7a6040', '#1a1208', '#7a6040', '#f2ece0', '#1a1208'];
+    const NCOLS = ['#7a2e10','#1a3e28','#1e2e5a','#5a1e48','#3a6020','#5a3800','#2a1e5a','#6a3010','#0e3a30','#3a1e60','#6a2020','#1e4a20','#2a2a6a'];
+    const ECOLS = ['#7a2e10','#1a3e28','#1e2e5a','#5a1e48','#3a6020'];
 
     function setup() {
       W = wrap.offsetWidth; H = wrap.offsetHeight;
@@ -193,11 +195,11 @@ function InsightWeaverIntro({ onSelectAuth }) {
         }
       }
       let md = [
-        {c:0,r:2,type:'circ',col:'#1a1208'},{c:1,r:5,type:'circ',col:'#7a6040'},
-        {c:2,r:3,type:'circ',col:'#7a6040'},{c:0,r:9,type:'line',col:'#1a1208'},
-        {c:1,r:11,type:'circ',col:'#7a6040'},{c:2,r:8,type:'line',col:'#1a1208'},
-        {c:0,r:14,type:'circ',col:'#7a6040'},{c:1,r:16,type:'line',col:'#1a1208'},
-        {c:2,r:13,type:'circ',col:'#7a6040'},
+        {c:0,r:2,type:'circ',col:'#7a2e10'},{c:1,r:5,type:'circ',col:'#1a3e28'},
+        {c:2,r:3,type:'circ',col:'#1e2e5a'},{c:0,r:9,type:'line',col:'#5a1e48'},
+        {c:1,r:11,type:'circ',col:'#5a1e48'},{c:2,r:8,type:'line',col:'#7a2e10'},
+        {c:0,r:14,type:'circ',col:'#3a6020'},{c:1,r:16,type:'line',col:'#1e2e5a'},
+        {c:2,r:13,type:'circ',col:'#5a3800'},
       ];
       md.forEach(function(m, i) {
         let cx2 = 44 + m.c * cw, y = ty + m.r * lh;
@@ -287,7 +289,7 @@ function InsightWeaverIntro({ onSelectAuth }) {
       if (t < 13) {
         raf = requestAnimationFrame(frame);
       } else {
-        if (onSelectAuth) onSelectAuth("login");
+        if (onComplete) onComplete();
       }
     }
 
@@ -310,17 +312,12 @@ function InsightWeaverIntro({ onSelectAuth }) {
       if (raf) cancelAnimationFrame(raf);
       window.removeEventListener('resize', handleResize);
     };
-  }, [onSelectAuth]);
-
-  function handleSelectAuth(mode, event) {
-    event.stopPropagation();
-    onSelectAuth?.(mode);
-  }
+  }, [onComplete]);
 
   return (
     <div 
       ref={wrapRef}
-      onClick={() => onSelectAuth?.("login")} 
+      onClick={onComplete} 
       style={{ width: "100vw", height: "100vh", background: "#f2ece0", position: "fixed", top: 0, left: 0, zIndex: 9999, overflow: "hidden", cursor: "pointer" }}
     >
       <canvas ref={canvasRef} style={{ position: "absolute", inset: 0, width: "100%", height: "100%", display: "block" }}></canvas>
@@ -328,37 +325,18 @@ function InsightWeaverIntro({ onSelectAuth }) {
         <div style={{ fontFamily: "Georgia,serif", fontWeight: 400, fontSize: "48px", letterSpacing: "0.18em", color: "#1a1208", textTransform: "uppercase", textShadow: "0 0 30px #f2ece0,0 0 60px #f2ece0,0 0 90px #f2ece0" }}>Insight Weaver</div>
         <div style={{ fontFamily: "Georgia,serif", fontSize: "12px", letterSpacing: "0.35em", color: "#7a6040", marginTop: "10px", textShadow: "0 0 20px #f2ece0" }}>research into relationships</div>
       </div>
-      <div style={{ position: "absolute", bottom: "30px", width: "100%", display: "flex", justifyContent: "center", gap: "18px", zIndex: 6 }}>
-        <button
-          className="intro-auth-btn"
-          type="button"
-          onClick={(event) => handleSelectAuth("login", event)}
-        >
-          <span className="spn2">Login</span>
-        </button>
-        <button
-          className="intro-auth-btn"
-          type="button"
-          onClick={(event) => handleSelectAuth("signup", event)}
-        >
-          <span className="spn2">Signup</span>
-        </button>
-      </div>
+      <div style={{ position: "absolute", bottom: "30px", width: "100%", textAlign: "center", color: "#7a6040", fontFamily: "Georgia,serif", fontSize: "12px", letterSpacing: "0.1em", opacity: 0.6 }}>Click anywhere to skip</div>
     </div>
   );
 }
 
-function LoginPage({ api, onLogin, initialMode = "login" }) {
-  const [isLogin, setIsLogin] = useState(initialMode !== "signup");
+function LoginPage({ api, onLogin }) {
+  const [isLogin, setIsLogin] = useState(true);
   const [username, setUsername] = useState("researcher");
   const [password, setPassword] = useState("discovery");
   const [email, setEmail] = useState("");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
-
-  useEffect(() => {
-    setIsLogin(initialMode !== "signup");
-  }, [initialMode]);
 
   async function submit(event) {
     event.preventDefault();
@@ -393,35 +371,77 @@ function LoginPage({ api, onLogin, initialMode = "login" }) {
 
   return (
     <div className="login-screen">
-      <section className="login-art" aria-label="Insight Weaver introduction">
-        <div className="login-art__inner">
-          <p className="login-brand">Insight Weaver</p>
-          <p className="login-subtitle">Research into Relationships</p>
-          <p className="login-support">Upload papers, build knowledge graphs, ask evidence-grounded questions, and generate testable hypotheses {"—"} powered by Gemma.</p>
+      <div className="login-art">
+        <div className="logo large">SC</div>
+        <span className="eyebrow">Scientific Discovery Copilot</span>
+        <h1>Research intelligence,{"\n"}organized.</h1>
+        <p>Upload papers, build knowledge graphs, ask evidence-grounded questions, and generate testable hypotheses — powered by Gemma.</p>
+        <div className="login-tag-row">
+          <span className="login-tag">GraphRAG</span>
+          <span className="login-tag">Gemma AI</span>
+          <span className="login-tag">Knowledge Graphs</span>
+          <span className="login-tag">Open Source</span>
         </div>
-      </section>
-      <section className="login-panel" aria-label={isLogin ? "Sign in" : "Sign up"}>
-        <form className="login-card" onSubmit={submit}>
-          <div className="login-copy">
-            <p className="login-kicker">{isLogin ? "Sign in" : "Sign up"}</p>
-            <h2>{isLogin ? "Welcome back" : "Create your account"}</h2>
-            <p>{isLogin ? "Sign in to continue your research workflow." : "Start organizing research with a structured workspace."}</p>
-          </div>
-          <div className="login-form-grid">
-            <input value={username} onChange={(event) => setUsername(event.target.value)} autoComplete="username" placeholder="Username" aria-label="Username" />
-            {!isLogin && (
-              <input type="email" value={email} onChange={(event) => setEmail(event.target.value)} autoComplete="email" placeholder="Email" aria-label="Email" />
-            )}
-            <input type="password" value={password} onChange={(event) => setPassword(event.target.value)} autoComplete={isLogin ? "current-password" : "new-password"} placeholder="Password" aria-label="Password" />
-          </div>
-          {error && <div className="callout danger">{error}</div>}
-          <LoadingButton busy={busy} className="btn-primary full">{isLogin ? "Sign in" : "Create account"}</LoadingButton>
-          <button type="button" className="login-toggle" onClick={() => setIsLogin(!isLogin)}>
-            <span className="spn2">{isLogin ? "Need an account? Sign up" : "Already have an account? Sign in"}</span>
+      </div>
+      <form className="login-card" onSubmit={submit}>
+        <div className="login-card__icon"><UserRound size={22} /></div>
+        <h2>{isLogin ? "Welcome back" : "Create account"}</h2>
+        <p>{isLogin ? "Sign in to your research workspace." : "Join and start discovering."}</p>
+        <label className="field">
+          <span>Username</span>
+          <input value={username} onChange={(event) => setUsername(event.target.value)} autoComplete="username" />
+        </label>
+        {!isLogin && (
+          <label className="field">
+            <span>Email</span>
+            <input type="email" value={email} onChange={(event) => setEmail(event.target.value)} autoComplete="email" />
+          </label>
+        )}
+        <label className="field">
+          <span>Password</span>
+          <input type="password" value={password} onChange={(event) => setPassword(event.target.value)} autoComplete={isLogin ? "current-password" : "new-password"} />
+        </label>
+        {error && <div className="callout danger">{error}</div>}
+        <LoadingButton busy={busy} icon={UserRound} className="btn-primary full">{isLogin ? "Enter workspace" : "Create account"}</LoadingButton>
+        <div style={{ textAlign: "center" }}>
+          <button type="button" onClick={() => setIsLogin(!isLogin)}
+            style={{ background: "none", color: "var(--violet)", fontSize: 14, fontWeight: 700, border: "none" }}>
+            {isLogin ? "Need an account? Sign up →" : "← Back to sign in"}
           </button>
-        </form>
-      </section>
+        </div>
+      </form>
     </div>
+  );
+}
+
+function TopBar({ active, setActive, tabs, modelStatus, refreshModel, user, onLogout, onResetWorkspace, theme, setTheme }) {
+  return (
+    <header className="topbar">
+      <div className="brand-mark">
+        <div className="logo">SC</div>
+        <div>
+          <span className="brand-name">Discovery Copilot</span>
+          <span>Gemma · GraphRAG · Ollama</span>
+        </div>
+      </div>
+      <nav className="top-tabs">
+        {tabs.map(([id, label, Icon]) => (
+          <button key={id} className={active === id ? "active" : ""} onClick={() => setActive(id)}>
+            <Icon size={17} /> {label}
+          </button>
+        ))}
+      </nav>
+      <div className="top-actions">
+        <StatusPill status={modelStatus?.status || "unknown"} />
+        <button className="icon-btn" onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')} title="Toggle theme">
+          {theme === 'dark' ? <Sun size={17} /> : <Moon size={17} />}
+        </button>
+        <button className="icon-btn" onClick={refreshModel} title="Refresh model status"><RefreshCw size={17} /></button>
+        <span className="user-chip">{user?.display_name || user?.username}</span>
+        <button className="icon-btn" onClick={onResetWorkspace} title="Reset workspace"><Database size={17} /></button>
+        <button className="icon-btn" onClick={onLogout} title="Log out"><LogOut size={17} /></button>
+      </div>
+    </header>
   );
 }
 
@@ -433,9 +453,9 @@ function Hero({ papers }) {
   return (
     <section className="hero">
       <div className="hero-copy">
-        <span className="eyebrow">Cross-Paper Intelligence - Knowledge Graphs - Gemma AI</span>
-        <h1>Insight Weaver</h1>
-        <p>Connected research for evidence-grounded discovery, relationship mapping, and scientific insight generation.</p>
+        <span className="eyebrow">GraphRAG · Knowledge Graphs · Gemma AI</span>
+        <h1>Scientific Discovery Copilot</h1>
+        <p>Upload research papers, build concept graphs, ask grounded questions, and turn retrieval into testable hypotheses.</p>
       </div>
       <div className="hero-grid">
         <StatCard label="Papers indexed" value={papers.length} icon={Database} />
@@ -447,7 +467,7 @@ function Hero({ papers }) {
   );
 }
 
-function UploadPanel({ api, refreshPapers, onUploadSuccess, onViewUploadedPapers }) {
+function UploadPanel({ api, refreshPapers }) {
   const [file, setFile] = useState(null);
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState(null);
@@ -473,7 +493,6 @@ function UploadPanel({ api, refreshPapers, onUploadSuccess, onViewUploadedPapers
       const data = await api.upload("/papers/upload", file);
       setResult(data);
       refreshPapers();
-      onUploadSuccess?.();
       await pollStatus(data.paper_id);
       pollRef.current = setInterval(() => pollStatus(data.paper_id).catch(console.error), 5000);
     } catch (error) {
@@ -511,11 +530,6 @@ function UploadPanel({ api, refreshPapers, onUploadSuccess, onViewUploadedPapers
               Upload and process
             </LoadingButton>
           </div>
-          <div style={{ marginTop: 10 }}>
-            <button type="button" className="btn btn-secondary" onClick={onViewUploadedPapers}>
-              <span className="spn2">View uploaded papers</span>
-            </button>
-          </div>
           {file && <div className="file-note"><FileText size={14} /> {file.name} selected</div>}
         </div>
         <div className="workflow-grid vertical">
@@ -549,7 +563,7 @@ function LibraryPanel({ papers, refreshPapers, api }) {
       <SectionHeader
         eyebrow="Library"
         title="Indexed Papers"
-        action={<button className="btn btn-secondary" onClick={refreshPapers}><span className="spn2"><RefreshCw size={16} /> Refresh</span></button>}
+        action={<button className="btn btn-secondary" onClick={refreshPapers}><RefreshCw size={16} /> Refresh</button>}
       >
         Review ingestion status and inspect parsed metadata before graph search or analysis.
       </SectionHeader>
@@ -564,7 +578,7 @@ function LibraryPanel({ papers, refreshPapers, api }) {
                 <div className="paper-meta">{paper.publication_year || "Unknown year"} | {formatAuthors(paper.authors)}</div>
               </div>
               <StatusPill status={paper.processing_status} />
-              <button className="btn btn-secondary" onClick={() => openDetails(paper.id)}><span className="spn2">Open</span></button>
+              <button className="btn btn-secondary" onClick={() => openDetails(paper.id)}>Open</button>
             </article>
           ))}
         </div>
@@ -599,13 +613,13 @@ function GraphCanvas({ nodes = [], edges = [], title = "Knowledge graph" }) {
 
   // Node type → color mapping
   const NODE_COLORS = {
-    paper: "#1a1208",
-    method: "#7a6040",
-    disease: "#1a1208",
-    drug: "#7a6040",
-    gene: "#7a6040",
-    protein: "#1a1208",
-    entity: "#7a6040",
+    paper: "#4a90e2",
+    method: "#0f766e",
+    disease: "#e25c4a",
+    drug: "#c084fc",
+    gene: "#f59e0b",
+    protein: "#10b981",
+    entity: "#6d28d9",
   };
   function nodeColor(node) {
     const t = String(node.type || "entity").toLowerCase();
@@ -697,17 +711,17 @@ function GraphCanvas({ nodes = [], edges = [], title = "Knowledge graph" }) {
             style={{ width: 160, padding: "6px 10px", fontSize: 13, borderRadius: 8, border: "1px solid var(--border)", background: "var(--surface)", color: "var(--ink)" }}
           />
           <button className="btn btn-secondary" onClick={exportPNG} title="Export as PNG">
-            <span className="spn2"><FileText size={15} /> Export</span>
+            <FileText size={15} /> Export
           </button>
           <button className="btn btn-secondary" onClick={() => fgRef.current?.zoomToFit(400)}>
-            <span className="spn2"><Maximize2 size={16} /> Refit</span>
+            <Maximize2 size={16} /> Refit
           </button>
           <button className="btn btn-secondary" onClick={() => {
             if (paused) { fgRef.current?.d3Force("charge").strength(-180); fgRef.current?.resumeAnimation(); }
             else { fgRef.current?.d3Force("charge").strength(0); fgRef.current?.pauseAnimation(); }
             setPaused(!paused);
           }}>
-            <span className="spn2">{paused ? <Play size={16} /> : <Pause size={16} />} {paused ? "Play" : "Pause"}</span>
+            {paused ? <Play size={16} /> : <Pause size={16} />} {paused ? "Play" : "Pause"}
           </button>
         </div>
       </div>
@@ -756,7 +770,7 @@ function GraphCanvas({ nodes = [], edges = [], title = "Knowledge graph" }) {
               ctx.fillStyle = color;
               ctx.globalAlpha = alpha;
               ctx.fill();
-              ctx.strokeStyle = isSelected ? "#f2ece0" : "rgba(122,96,64,0.25)";
+              ctx.strokeStyle = isSelected ? "#fff" : "rgba(255,255,255,0.2)";
               ctx.lineWidth = isSelected ? 1.5 : 0.8;
               ctx.stroke();
               ctx.globalAlpha = 1;
@@ -767,7 +781,7 @@ function GraphCanvas({ nodes = [], edges = [], title = "Knowledge graph" }) {
                 const label = String(node.label || node.id).slice(0, 30);
                 const fontSize = Math.max(8, Math.min(12, 10 / Math.sqrt(globalScale)));
                 ctx.font = `${isSelected ? "bold " : ""}${fontSize}px Inter, sans-serif`;
-                ctx.fillStyle = `rgba(242,236,224,${alpha * 0.95})`;
+                ctx.fillStyle = `rgba(220,220,235,${alpha * 0.95})`;
                 ctx.textAlign = "left";
                 ctx.textBaseline = "middle";
                 ctx.fillText(label, node.x + r + 3, node.y);
@@ -784,8 +798,8 @@ function GraphCanvas({ nodes = [], edges = [], title = "Knowledge graph" }) {
             linkColor={link => {
               const isHl = highlightLinks.has(link);
               const t = String(link.type || "").toLowerCase();
-              const base = t.includes("causal") ? "#7a6040" : t.includes("inhibit") ? "#1a1208" : t.includes("assoc") ? "#7a6040" : "#1a1208";
-              return isHl ? base : "rgba(122,96,64,0.25)";
+              const base = t.includes("causal") ? "#f59e0b" : t.includes("inhibit") ? "#ef4444" : t.includes("assoc") ? "#10b981" : "#6366f1";
+              return isHl ? base : "rgba(148,163,184,0.25)";
             }}
             linkWidth={link => highlightLinks.has(link) ? 2 : 0.8 + (Number(link.confidence || 0.4) * 1.5)}
             linkLabel={link => link.type || ""}
@@ -811,7 +825,7 @@ function GraphCanvas({ nodes = [], edges = [], title = "Knowledge graph" }) {
           }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
               <b style={{ color: "var(--ink)", fontSize: 14 }}>Node Details</b>
-              <button className="icon-btn node-close-btn" onClick={() => setSelectedNode(null)} title="Close node details"><span className="spn2">×</span></button>
+              <button onClick={() => setSelectedNode(null)} style={{ background: "none", border: "none", color: "var(--muted)", fontSize: 16, cursor: "pointer" }}>×</button>
             </div>
             <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
               <span style={{ width: 10, height: 10, borderRadius: "50%", background: nodeColor(selectedNode), flexShrink: 0 }} />
@@ -922,6 +936,113 @@ function GraphRagPanel({ api, papers, setLastResult }) {
           </div>
         </div>
       )}
+    </section>
+  );
+}
+
+function RagChatPanel({ api, papers, setLastResult }) {
+  const [draft, setDraft] = useState("What are the strongest evidence-backed insights in my uploaded papers?");
+  const [selected, setSelected] = useState([]);
+  const [useGemma, setUseGemma] = useState(false);
+  const [messages, setMessages] = useState([
+    {
+      role: "assistant",
+      content: "Ask me about your uploaded papers. I will answer through GraphRAG, cite retrieved evidence, and keep the response grounded in your current workspace.",
+      meta: "GraphRAG ready"
+    }
+  ]);
+  const [busy, setBusy] = useState(false);
+
+  async function sendMessage(event) {
+    event?.preventDefault();
+    const question = draft.trim();
+    if (!question || busy) return;
+    const userMessage = { role: "user", content: question };
+    setMessages((items) => [...items, userMessage]);
+    setDraft("");
+    setBusy(true);
+    try {
+      const data = await api.post("/search", {
+        query: question,
+        paper_ids: selected.length ? selected.map(Number) : null,
+        n_results: 6,
+        include_graph: true,
+        use_vector: true,
+        use_gemma: useGemma,
+        max_model_seconds: 12
+      });
+      setLastResult({ query: question, data });
+      setMessages((items) => [
+        ...items,
+        {
+          role: "assistant",
+          content: data.answer,
+          meta: `${data.results?.length || 0} chunks · ${data.graph_context?.entities?.length || 0} entities · ${data.graph_context?.relationships?.length || 0} relations`,
+          warnings: data.warnings || []
+        }
+      ]);
+    } catch (error) {
+      setMessages((items) => [
+        ...items,
+        {
+          role: "assistant",
+          content: `I could not complete the GraphRAG answer: ${error.message}`,
+          meta: "Request failed"
+        }
+      ]);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <section className="page-card">
+      <SectionHeader eyebrow="Conversational retrieval" title="RAG Chatbot">
+        Chat with your paper workspace using GraphRAG evidence, entity links, and retrieved scientific chunks.
+      </SectionHeader>
+      <div className="chat-shell">
+        <aside className="chat-side">
+          <b>Evidence scope</b>
+          <p>Select papers to narrow the chatbot. Leave empty to search the whole workspace.</p>
+          <select multiple value={selected} onChange={(event) => setSelected([...event.target.selectedOptions].map((item) => item.value))}>
+            {papers.map((paper) => <option value={paper.id} key={paper.id}>{paper.id}. {paper.title || "Untitled"}</option>)}
+          </select>
+          <label className="check"><input type="checkbox" checked={useGemma} onChange={(event) => setUseGemma(event.target.checked)} /> Gemma synthesis</label>
+          <div className="chat-tip">
+            Good prompts: ask for mechanisms, contradictions, methods, datasets, biomarkers, limitations, or experiment ideas.
+          </div>
+        </aside>
+        <div className="chat-main">
+          <div className="chat-thread">
+            {messages.map((message, index) => (
+              <article key={index} className={classNames("chat-message", `chat-${message.role}`)}>
+                <div className="chat-bubble">
+                  <span className="chat-role">{message.role === "user" ? "You" : "Insight Weaver"}</span>
+                  <MarkdownText value={message.content} />
+                  {message.meta && <small>{message.meta}</small>}
+                  {message.warnings?.length > 0 && (
+                    <div className="chat-warnings">
+                      {message.warnings.map((warning, idx) => <span key={idx}>{warning}</span>)}
+                    </div>
+                  )}
+                </div>
+              </article>
+            ))}
+            {busy && (
+              <article className="chat-message chat-assistant">
+                <div className="chat-bubble">
+                  <span className="chat-role">Insight Weaver</span>
+                  <p className="chat-thinking"><Loader2 className="spin" size={16} /> Searching chunks, graph links, and entity evidence...</p>
+                </div>
+              </article>
+            )}
+          </div>
+          <form className="chat-composer" onSubmit={sendMessage}>
+            <input value={draft} onChange={(event) => setDraft(event.target.value)} placeholder="Ask a grounded question about your uploaded papers..." />
+            <LoadingButton busy={busy} icon={Send} className="btn-primary">Send</LoadingButton>
+          </form>
+        </div>
+      </div>
     </section>
   );
 }
@@ -1088,19 +1209,19 @@ function HypothesisPanel({ api, papers }) {
       )}
 
       {warnings.length > 0 && (
-        <div style={{ marginBottom: 16, padding: "10px 14px", background: "rgba(122,96,64,0.08)", border: "1px solid rgba(122,96,64,0.3)", borderRadius: 8, fontSize: 13, color: "var(--ink)" }}>
+        <div style={{ marginBottom: 16, padding: "10px 14px", background: "rgba(245,158,11,0.08)", border: "1px solid rgba(245,158,11,0.3)", borderRadius: 8, fontSize: 13, color: "var(--amber)" }}>
           ℹ {warnings.join(" ")}
         </div>
       )}
 
       {meta.most_promising_direction && (
-        <div style={{ marginBottom: 20, padding: "14px 18px", background: "rgba(122,96,64,0.08)", border: "1px solid rgba(122,96,64,0.22)", borderRadius: 10 }}>
+        <div style={{ marginBottom: 20, padding: "14px 18px", background: "rgba(99,102,241,0.06)", border: "1px solid rgba(99,102,241,0.2)", borderRadius: 10 }}>
           <span style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", color: "var(--violet)", letterSpacing: "0.06em" }}>Most promising direction</span>
           <p style={{ color: "var(--ink)", marginTop: 6, fontSize: 14 }}>{meta.most_promising_direction}</p>
           {meta.dominant_themes?.length > 0 && (
             <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 10 }}>
               {meta.dominant_themes.map(t => (
-                <span key={t} style={{ padding: "3px 10px", borderRadius: 999, background: "rgba(122,96,64,0.12)", fontSize: 12, fontWeight: 600, color: "var(--ink)" }}>{t}</span>
+                <span key={t} style={{ padding: "3px 10px", borderRadius: 999, background: "rgba(99,102,241,0.12)", fontSize: 12, fontWeight: 600, color: "var(--violet)" }}>{t}</span>
               ))}
             </div>
           )}
@@ -1121,8 +1242,8 @@ function HypothesisPanel({ api, papers }) {
                 <div style={{ display: "flex", gap: 8, alignItems: "center", flexShrink: 0 }}>
                   <span style={{
                     padding: "3px 10px", borderRadius: 999, fontSize: 11, fontWeight: 700,
-                    background: item.testability === "high" ? "rgba(26,18,8,0.1)" : "rgba(122,96,64,0.12)",
-                    color: item.testability === "high" ? "var(--paper)" : "var(--ink)"
+                    background: item.testability === "high" ? "rgba(16,185,129,0.12)" : "rgba(245,158,11,0.12)",
+                    color: item.testability === "high" ? "var(--green)" : "var(--amber)"
                   }}>{item.testability || "unknown"} testability</span>
                   <span style={{ fontSize: 12, color: "var(--muted)" }}>{expanded ? "▲" : "▼"}</span>
                 </div>
@@ -1141,7 +1262,7 @@ function HypothesisPanel({ api, papers }) {
                   </div>
 
                   {item.suggested_experiments?.length > 0 && (
-                    <div style={{ padding: 14, background: "rgba(26,18,8,0.05)", border: "1px solid rgba(26,18,8,0.18)", borderRadius: 8 }}>
+                    <div style={{ padding: 14, background: "rgba(16,185,129,0.04)", border: "1px solid rgba(16,185,129,0.2)", borderRadius: 8 }}>
                       <span style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", color: "var(--green)" }}>Suggested Experiments</span>
                       <ul style={{ marginTop: 8, paddingLeft: 18, display: "grid", gap: 6 }}>
                         {item.suggested_experiments.map((exp, i) => <li key={i} style={{ fontSize: 13.5, color: "var(--ink)" }}>{exp}</li>)}
@@ -1150,7 +1271,7 @@ function HypothesisPanel({ api, papers }) {
                   )}
 
                   {item.research_gaps_addressed?.length > 0 && (
-                    <div style={{ padding: 14, background: "rgba(122,96,64,0.08)", border: "1px solid rgba(122,96,64,0.22)", borderRadius: 8 }}>
+                    <div style={{ padding: 14, background: "rgba(99,102,241,0.04)", border: "1px solid rgba(99,102,241,0.2)", borderRadius: 8 }}>
                       <span style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", color: "var(--violet)" }}>Research Gaps Addressed</span>
                       <ul style={{ marginTop: 8, paddingLeft: 18, display: "grid", gap: 6 }}>
                         {item.research_gaps_addressed.map((gap, i) => <li key={i} style={{ fontSize: 13.5, color: "var(--ink)" }}>{gap}</li>)}
@@ -1159,7 +1280,7 @@ function HypothesisPanel({ api, papers }) {
                   )}
 
                   {item.falsifiable_conditions && (
-                    <div style={{ padding: 14, background: "rgba(122,96,64,0.1)", border: "1px solid rgba(122,96,64,0.22)", borderRadius: 8 }}>
+                    <div style={{ padding: 14, background: "rgba(239,68,68,0.04)", border: "1px solid rgba(239,68,68,0.2)", borderRadius: 8 }}>
                       <span style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", color: "var(--coral)" }}>Falsifiable if…</span>
                       <p style={{ marginTop: 6, fontSize: 13.5, color: "var(--ink)" }}>{item.falsifiable_conditions}</p>
                     </div>
@@ -1276,12 +1397,12 @@ function AnalysisPanel({ api, papers }) {
             {output.year_range && <StatCard label="Year Range" value={`${output.year_range[0]}–${output.year_range[1]}`} icon={Sparkles} tone="violet" />}
           </div>
           {output.trending_direction && (
-            <div style={{ padding: "12px 16px", background: "rgba(122,96,64,0.08)", border: "1px solid rgba(122,96,64,0.22)", borderRadius: 10 }}>
+            <div style={{ padding: "12px 16px", background: "rgba(99,102,241,0.06)", border: "1px solid rgba(99,102,241,0.2)", borderRadius: 10 }}>
               <span style={{ fontSize: 11, fontWeight: 700, color: "var(--violet)", textTransform: "uppercase" }}>Trending Direction</span>
               <p style={{ marginTop: 6, color: "var(--ink)" }}>{output.trending_direction}</p>
             </div>
           )}
-          {[["Key Milestones", output.key_milestones, "var(--ink)"], ["Paradigm Shifts", output.paradigm_shifts, "var(--muted)"], ["Open Questions", output.open_questions, "var(--ink)"]].map(([label, items, color]) =>
+          {[["Key Milestones", output.key_milestones, "var(--green)"], ["Paradigm Shifts", output.paradigm_shifts, "var(--amber)"], ["Open Questions", output.open_questions, "var(--coral)"]].map(([label, items, color]) =>
             items?.length > 0 && (
               <div key={label} style={{ padding: 14, background: "var(--surface2)", borderRadius: 10, border: "1px solid var(--border)" }}>
                 <span style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", color }}>{label}</span>
@@ -1299,10 +1420,10 @@ function AnalysisPanel({ api, papers }) {
           {(Array.isArray(output) ? output : []).length === 0
             ? <EmptyState title="No contradictions detected">The selected papers appear consistent on this topic.</EmptyState>
             : (Array.isArray(output) ? output : []).map((item, i) => (
-              <div key={i} style={{ padding: 16, background: "var(--surface2)", borderRadius: 10, border: `1px solid ${item.has_contradiction ? "rgba(122,96,64,0.35)" : "var(--border)"}` }}>
+              <div key={i} style={{ padding: 16, background: "var(--surface2)", borderRadius: 10, border: `1px solid ${item.has_contradiction ? "rgba(239,68,68,0.4)" : "var(--border)"}` }}>
                 <div style={{ display: "flex", gap: 8, marginBottom: 8, alignItems: "center" }}>
                   <span style={{ fontWeight: 700, fontSize: 13 }}>Paper {item.paper_a_id} vs Paper {item.paper_b_id}</span>
-                  <span style={{ padding: "2px 8px", borderRadius: 999, fontSize: 11, fontWeight: 700, background: item.has_contradiction ? "rgba(122,96,64,0.18)" : "rgba(26,18,8,0.1)", color: item.has_contradiction ? "var(--ink)" : "var(--paper)" }}>
+                  <span style={{ padding: "2px 8px", borderRadius: 999, fontSize: 11, fontWeight: 700, background: item.has_contradiction ? "rgba(239,68,68,0.12)" : "rgba(16,185,129,0.12)", color: item.has_contradiction ? "var(--coral)" : "var(--green)" }}>
                     {item.has_contradiction ? `${item.severity} contradiction` : "No contradiction"}
                   </span>
                 </div>
@@ -1322,7 +1443,7 @@ function AnalysisPanel({ api, papers }) {
               <div key={i} style={{ padding: 16, background: "var(--surface2)", borderRadius: 10, border: "1px solid var(--border)" }}>
                 <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 8 }}>
                   <span style={{ fontWeight: 700, fontSize: 13 }}>{item.target_paper_title || `Paper ${item.target_paper_id}`}</span>
-                  <span style={{ fontSize: 12, color: "var(--ink)", fontWeight: 600 }}>score {Number(item.connection_score || 0).toFixed(3)}</span>
+                  <span style={{ fontSize: 12, color: "var(--violet)", fontWeight: 600 }}>score {Number(item.connection_score || 0).toFixed(3)}</span>
                 </div>
                 <p style={{ fontSize: 12.5, color: "var(--muted)", marginBottom: 6 }}>Source: <em>{item.source_excerpt}</em></p>
                 <p style={{ fontSize: 12.5, color: "var(--muted)" }}>Target: <em>{item.target_excerpt}</em></p>
@@ -1338,12 +1459,11 @@ function AnalysisPanel({ api, papers }) {
 function App() {
   const api = useApi();
   const [showIntro, setShowIntro] = useState(() => !localStorage.getItem("sc_user"));
-  const [authMode, setAuthMode] = useState("login");
   const [user, setUser] = useState(() => {
     const stored = localStorage.getItem("sc_user");
     return stored ? JSON.parse(stored) : null;
   });
-  const [active, setActive] = useState("analysis");
+  const [active, setActive] = useState("upload");
   const [papers, setPapers] = useState([]);
   const [modelStatus, setModelStatus] = useState(null);
   const [lastResult, setLastResult] = useState(null);
@@ -1363,11 +1483,6 @@ function App() {
     setUser(nextUser);
   }
 
-  function openAuth(mode = "login") {
-    setAuthMode(mode);
-    setShowIntro(false);
-  }
-
   function logout() {
     localStorage.removeItem("sc_user");
     sessionStorage.removeItem(WORKSPACE_KEY);
@@ -1383,7 +1498,7 @@ function App() {
     sessionStorage.removeItem(WORKSPACE_KEY);
     setPapers([]);
     setLastResult(null);
-    setActive("analysis");
+    setActive("upload");
     refreshPapers();
   }
 
@@ -1411,45 +1526,44 @@ function App() {
     }
   }, [user]);
 
-  const navigationItems = [
-    { id: "upload", label: "Workspace", icon: Upload, ariaLabel: "Open workspace tools" },
-    { id: "analysis", label: "Cross-Paper Analysis", icon: Activity, emphasized: true, ariaLabel: "Open cross-paper analysis" },
-    { id: "library", label: "Library", icon: Database, ariaLabel: "Open library" },
-    { id: "graph", label: "Knowledge Graph", icon: Network, ariaLabel: "Open knowledge graph" },
-    { id: "studio", label: "Discovery", icon: Sparkles, ariaLabel: "Open discovery workspace" }
+  const tabs = [
+    ["upload", "Upload", Upload],
+    ["library", "Library", Database],
+    ["graphrag", "GraphRAG", Search],
+    ["chat", "RAG Chat", MessageCircle],
+    ["studio", "Studio", Sparkles],
+    ["graph", "Graph", Network],
+    ["hypothesis", "Hypotheses", FlaskConical],
+    ["analysis", "Analysis", Activity]
   ];
 
-  if (showIntro) return <InsightWeaverIntro onSelectAuth={openAuth} />;
-  if (!user) return <LoginPage api={api} onLogin={login} initialMode={authMode} />;
+  if (showIntro) return <InsightWeaverIntro onComplete={() => setShowIntro(false)} />;
+  if (!user) return <LoginPage api={api} onLogin={login} />;
 
   return (
     <div className="app-shell">
-      <StaggeredMenu
-        position="left"
-        items={navigationItems}
-        activeItem={active}
-        onItemSelect={setActive}
+      <TopBar
+        active={active}
+        setActive={setActive}
+        tabs={tabs}
         modelStatus={modelStatus}
-        onRefreshModel={refreshModel}
+        refreshModel={refreshModel}
         user={user}
         onLogout={logout}
         onResetWorkspace={resetWorkspace}
         theme={theme}
         setTheme={setTheme}
       />
-      <main className="workspace-main">
+      <main>
+        <Hero papers={papers} />
         <div className="page-frame">
-          {active === "upload" && (
-            <UploadPanel
-              api={api}
-              refreshPapers={refreshPapers}
-              onUploadSuccess={() => setActive("analysis")}
-              onViewUploadedPapers={() => setActive("library")}
-            />
-          )}
+          {active === "upload" && <UploadPanel api={api} refreshPapers={refreshPapers} />}
           {active === "library" && <LibraryPanel papers={papers} refreshPapers={refreshPapers} api={api} />}
+          {active === "graphrag" && <GraphRagPanel api={api} papers={papers} setLastResult={setLastResult} />}
+          {active === "chat" && <RagChatPanel api={api} papers={papers} setLastResult={setLastResult} />}
           {active === "studio" && <DiscoveryPanel lastResult={lastResult} />}
           {active === "graph" && <KnowledgeGraphPanel api={api} papers={papers} />}
+          {active === "hypothesis" && <HypothesisPanel api={api} papers={papers} />}
           {active === "analysis" && <AnalysisPanel api={api} papers={papers} />}
         </div>
       </main>
