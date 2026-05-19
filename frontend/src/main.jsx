@@ -610,17 +610,30 @@ function GraphCanvas({ nodes = [], edges = [], title = "Knowledge graph" }) {
   const [highlightLinks, setHighlightLinks] = useState(new Set());
   const fgRef = useRef();
   const containerRef = useRef();
+  const isDarkTheme = typeof document !== "undefined" && document.body.classList.contains("dark");
+  const graphTextColor = isDarkTheme ? "#f5efe4" : "#1a1208";
+  const graphMutedLink = isDarkTheme ? "rgba(216,190,152,0.32)" : "rgba(122,96,64,0.25)";
 
   // Node type → color mapping
-  const NODE_COLORS = {
-    paper: "#4a90e2",
-    method: "#0f766e",
-    disease: "#e25c4a",
-    drug: "#c084fc",
-    gene: "#f59e0b",
-    protein: "#10b981",
-    entity: "#6d28d9",
-  };
+  const NODE_COLORS = isDarkTheme
+    ? {
+        paper: "#f5efe4",
+        method: "#D8BE98",
+        disease: "#f5efe4",
+        drug: "#D8BE98",
+        gene: "#D8BE98",
+        protein: "#f5efe4",
+        entity: "#D8BE98",
+      }
+    : {
+        paper: "#1a1208",
+        method: "#7a6040",
+        disease: "#1a1208",
+        drug: "#7a6040",
+        gene: "#7a6040",
+        protein: "#1a1208",
+        entity: "#7a6040",
+      };
   function nodeColor(node) {
     const t = String(node.type || "entity").toLowerCase();
     for (const [k, v] of Object.entries(NODE_COLORS)) {
@@ -770,7 +783,7 @@ function GraphCanvas({ nodes = [], edges = [], title = "Knowledge graph" }) {
               ctx.fillStyle = color;
               ctx.globalAlpha = alpha;
               ctx.fill();
-              ctx.strokeStyle = isSelected ? "#fff" : "rgba(255,255,255,0.2)";
+              ctx.strokeStyle = isSelected ? graphTextColor : graphMutedLink;
               ctx.lineWidth = isSelected ? 1.5 : 0.8;
               ctx.stroke();
               ctx.globalAlpha = 1;
@@ -781,7 +794,7 @@ function GraphCanvas({ nodes = [], edges = [], title = "Knowledge graph" }) {
                 const label = String(node.label || node.id).slice(0, 30);
                 const fontSize = Math.max(8, Math.min(12, 10 / Math.sqrt(globalScale)));
                 ctx.font = `${isSelected ? "bold " : ""}${fontSize}px Inter, sans-serif`;
-                ctx.fillStyle = `rgba(220,220,235,${alpha * 0.95})`;
+                ctx.fillStyle = isDarkTheme ? `rgba(245,239,228,${alpha * 0.95})` : `rgba(26,18,8,${alpha * 0.95})`;
                 ctx.textAlign = "left";
                 ctx.textBaseline = "middle";
                 ctx.fillText(label, node.x + r + 3, node.y);
@@ -798,8 +811,9 @@ function GraphCanvas({ nodes = [], edges = [], title = "Knowledge graph" }) {
             linkColor={link => {
               const isHl = highlightLinks.has(link);
               const t = String(link.type || "").toLowerCase();
-              const base = t.includes("causal") ? "#f59e0b" : t.includes("inhibit") ? "#ef4444" : t.includes("assoc") ? "#10b981" : "#6366f1";
-              return isHl ? base : "rgba(148,163,184,0.25)";
+              const base = t.includes("causal") || t.includes("assoc") ? "#7a6040" : "#1a1208";
+              const darkBase = t.includes("causal") || t.includes("assoc") ? "#D8BE98" : "#f5efe4";
+              return isHl ? (isDarkTheme ? darkBase : base) : graphMutedLink;
             }}
             linkWidth={link => highlightLinks.has(link) ? 2 : 0.8 + (Number(link.confidence || 0.4) * 1.5)}
             linkLabel={link => link.type || ""}
@@ -1242,8 +1256,8 @@ function HypothesisPanel({ api, papers }) {
                 <div style={{ display: "flex", gap: 8, alignItems: "center", flexShrink: 0 }}>
                   <span style={{
                     padding: "3px 10px", borderRadius: 999, fontSize: 11, fontWeight: 700,
-                    background: item.testability === "high" ? "rgba(16,185,129,0.12)" : "rgba(245,158,11,0.12)",
-                    color: item.testability === "high" ? "var(--green)" : "var(--amber)"
+                    background: item.testability === "high" ? "var(--ink)" : "rgba(122,96,64,0.12)",
+                    color: item.testability === "high" ? "var(--paper)" : "var(--ink)"
                   }}>{item.testability || "unknown"} testability</span>
                   <span style={{ fontSize: 12, color: "var(--muted)" }}>{expanded ? "▲" : "▼"}</span>
                 </div>
@@ -1423,7 +1437,7 @@ function AnalysisPanel({ api, papers }) {
               <div key={i} style={{ padding: 16, background: "var(--surface2)", borderRadius: 10, border: `1px solid ${item.has_contradiction ? "rgba(239,68,68,0.4)" : "var(--border)"}` }}>
                 <div style={{ display: "flex", gap: 8, marginBottom: 8, alignItems: "center" }}>
                   <span style={{ fontWeight: 700, fontSize: 13 }}>Paper {item.paper_a_id} vs Paper {item.paper_b_id}</span>
-                  <span style={{ padding: "2px 8px", borderRadius: 999, fontSize: 11, fontWeight: 700, background: item.has_contradiction ? "rgba(239,68,68,0.12)" : "rgba(16,185,129,0.12)", color: item.has_contradiction ? "var(--coral)" : "var(--green)" }}>
+                  <span style={{ padding: "2px 8px", borderRadius: 999, fontSize: 11, fontWeight: 700, background: item.has_contradiction ? "rgba(122,96,64,0.18)" : "var(--ink)", color: item.has_contradiction ? "var(--ink)" : "var(--paper)" }}>
                     {item.has_contradiction ? `${item.severity} contradiction` : "No contradiction"}
                   </span>
                 </div>
