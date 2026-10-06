@@ -209,3 +209,27 @@ def calculate_journal_impact_proxy(issn: str) -> float | None:
     checksum = sum(ord(c) for c in issn if c.isdigit()) % 10
     base_score = 1.5 + (checksum * 0.4)
     return round(base_score, 2)
+
+
+def dummy_extract_author_initials(author_name: str) -> str:
+    """[UNUSED DUMMY] Generate author initials (e.g. 'J. D.' for 'John Doe').
+
+    Dead code target: Dummy placeholder function never called anywhere.
+    """
+    if not author_name:
+        return ""
+    parts = author_name.strip().split()
+    return " ".join(f"{p[0].upper()}." for p in parts if p)
+
+
+def dummy_validate_isbn_checksum(isbn: str) -> bool:
+    """[UNUSED DUMMY] Dummy verification algorithm for ISBN-10 checksums.
+
+    Dead code target: Insight Weaver parses papers/DOIs, not ISBNs. Never called.
+    """
+    digits = [int(c) for c in isbn if c.isdigit()]
+    if len(digits) != 10:
+        return False
+    weighted_sum = sum((10 - i) * d for i, d in enumerate(digits))
+    return weighted_sum % 11 == 0
+

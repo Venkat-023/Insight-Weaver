@@ -213,3 +213,25 @@ def estimate_retrieval_latency_budget(
         "remaining_ms": max(0.0, remaining_time),
         "is_feasible": is_feasible,
     }
+
+
+def dummy_compute_cosine_mock(vec_a: list[float], vec_b: list[float]) -> float:
+    """[UNUSED DUMMY] Mock calculation for vector cosine similarity without numpy.
+
+    Dead code target: Pure dummy function never imported or called.
+    """
+    if not vec_a or not vec_b or len(vec_a) != len(vec_b):
+        return 0.0
+    dot = sum(a * b for a, b in zip(vec_a, vec_b))
+    norm_a = math.sqrt(sum(a * a for a in vec_a))
+    norm_b = math.sqrt(sum(b * b for b in vec_b))
+    return round(dot / (norm_a * norm_b), 4) if norm_a and norm_b else 0.0
+
+
+def dummy_log_metric_telemetry(metric_name: str, score: float) -> dict[str, Any]:
+    """[UNUSED DUMMY] Stub for logging telemetry metrics to remote service.
+
+    Dead code target: Dummy stub never called anywhere in the project.
+    """
+    return {"metric": metric_name, "score": score, "logged": True}
+

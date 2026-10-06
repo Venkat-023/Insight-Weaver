@@ -46,3 +46,30 @@ class ScientificTextCleaner:
             text = self._RE_MULTI_SPACE.sub(" ", text)
 
         return text.strip()
+
+
+def dummy_strip_latex_math_tags(text: str) -> str:
+    """[UNUSED DUMMY] Strip inline and display math LaTeX delimiter tags.
+
+    Dead code target: Dummy text processor function never invoked or imported.
+    """
+    if not text:
+        return ""
+    cleaned = re.sub(r"\$\$[^\$]+\$\$", "", text)
+    cleaned = re.sub(r"\$[^\$]+\$", "", cleaned)
+    return cleaned.strip()
+
+
+def dummy_count_vowels_frequency(text: str) -> dict[str, int]:
+    """[UNUSED DUMMY] Calculate vowel distribution counts in document text.
+
+    Dead code target: Toy statistical helper never called anywhere in the codebase.
+    """
+    vowels = {"a": 0, "e": 0, "i": 0, "o": 0, "u": 0}
+    if not text:
+        return vowels
+    for ch in text.lower():
+        if ch in vowels:
+            vowels[ch] += 1
+    return vowels
+

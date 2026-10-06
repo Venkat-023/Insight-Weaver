@@ -27,3 +27,32 @@ class SemanticSearch:
                 )
             return sorted(merged, key=lambda item: item.similarity_score, reverse=True)[:n_results]
         return self.vector_store.search(query, n_results, filter_section=section_filter, workspace_id=workspace_id)
+
+
+def dummy_rerank_by_keyword_frequency(query: str, texts: list[str]) -> list[float]:
+    """[UNUSED DUMMY] Dummy frequency-based score generator for search results.
+
+    Dead code target: The project uses Chroma cosine embeddings and BM25;
+    this standalone helper is never called anywhere.
+    """
+    if not query or not texts:
+        return []
+    words = query.lower().split()
+    scores = []
+    for t in texts:
+        t_lower = t.lower()
+        score = sum(t_lower.count(w) for w in words)
+        scores.append(float(score))
+    return scores
+
+
+def dummy_calculate_hybrid_alpha(semantic_weight: float = 0.7, keyword_weight: float = 0.3) -> float:
+    """[UNUSED DUMMY] Compute normalized alpha ratio for hybrid retrieval blending.
+
+    Dead code target: Never imported or called in any search pipeline.
+    """
+    total = semantic_weight + keyword_weight
+    if total <= 0:
+        return 0.5
+    return round(semantic_weight / total, 3)
+

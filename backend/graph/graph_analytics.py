@@ -221,3 +221,37 @@ def calculate_graph_density_ratio(
         return 0.0
 
     return round(edge_count / possible_edges, 5)
+
+
+def dummy_count_triangle_motifs(nodes: list[dict[str, Any]], edges: list[dict[str, Any]]) -> int:
+    """[UNUSED DUMMY] Count 3-node triangle cliques in the network.
+
+    Dead code target: Dummy network analysis routine never invoked or referenced.
+    """
+    adj = defaultdict(set)
+    for e in edges:
+        s, t = str(e.get("source")), str(e.get("target"))
+        adj[s].add(t)
+        adj[t].add(s)
+
+    triangles = 0
+    node_ids = list(adj.keys())
+    for i, u in enumerate(node_ids):
+        for j in range(i + 1, len(node_ids)):
+            v = node_ids[j]
+            if v in adj[u]:
+                common = adj[u].intersection(adj[v])
+                triangles += sum(1 for w in common if node_ids.index(w) > j)
+    return triangles
+
+
+def dummy_generate_adjacency_hash(edges: list[dict[str, Any]]) -> str:
+    """[UNUSED DUMMY] Compute signature hash for an edge list.
+
+    Dead code target: Dummy helper never called anywhere.
+    """
+    if not edges:
+        return "empty_graph_0"
+    edge_pairs = sorted(f"{e.get('source')}-{e.get('target')}" for e in edges)
+    return f"graph_hash_{len(edge_pairs)}_{hash(tuple(edge_pairs)) % 100000}"
+
