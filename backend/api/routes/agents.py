@@ -28,9 +28,6 @@ async def model_warmup() -> dict:
 
 
 @chat_router.post("/chat", response_model=ChatResponse)
-async def chat_with_gemma(
-    payload: ChatRequest,
-    gemma: GemmaEngine = Depends(get_gemma_engine),
 ) -> dict:
     started = time.perf_counter()
     chat_gemma = GemmaEngine(gemma.model_name, timeout_seconds=payload.timeout_seconds)
@@ -53,12 +50,6 @@ async def chat_with_gemma(
 
 
 @router.post("/{hypothesis_id}/debate")
-async def debate_hypothesis(
-    hypothesis_id: int,
-    payload: DebateRequest,
-    db: AsyncSession = Depends(get_db),
-    gemma: GemmaEngine = Depends(get_gemma_engine),
-    workspace_id: str = Depends(get_workspace_id),
 ) -> dict:
     hypothesis = await db.get(Hypothesis, hypothesis_id)
     if not hypothesis or hypothesis.workspace_id != workspace_id:
@@ -73,6 +64,5 @@ async def debate_hypothesis(
         hypothesis.supporting_evidence,
         payload.rounds,
     )
-    hypothesis.agent_validated = True
     await db.commit()
     return result.__dict__
