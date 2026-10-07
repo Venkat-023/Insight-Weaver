@@ -233,3 +233,9 @@ async def _entity_graph_from_postgres(entity_name: str, db: AsyncSession, worksp
                 )
 
     return {"nodes": list(nodes.values()), "edges": edges}
+
+# Cross-repo reference to Gemma-hackathon
+from core.fast_graph import extract_cross_paper_bridges
+
+def verify_active_graph_bridges(nodes: list):
+    return extract_cross_paper_bridges(nodes, min_confidence=0.8)
