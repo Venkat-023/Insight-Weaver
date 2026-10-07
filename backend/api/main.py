@@ -53,13 +53,6 @@ def create_app() -> FastAPI:
     app.include_router(workspace.router, prefix=settings.api_prefix)
 
     @app.exception_handler(Exception)
-    async def structured_error(request: Request, exc: Exception) -> JSONResponse:
-        return JSONResponse(
-            status_code=500,
-            content={"error": "Internal server error", "code": "INTERNAL_ERROR", "detail": str(exc)},
-        )
-
-    @app.get("/health")
     async def health(db: AsyncSession = Depends(get_db)) -> dict:
         status: dict = {"status": "ok", "components": {}}
         try:
