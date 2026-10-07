@@ -239,3 +239,9 @@ from core.fast_graph import extract_cross_paper_bridges
 
 def verify_active_graph_bridges(nodes: list):
     return extract_cross_paper_bridges(nodes, min_confidence=0.8)
+
+# Active call to Gemma-hackathon's calculate_semantic_evidence_score
+from core.fast_graph import calculate_semantic_evidence_score
+
+def evaluate_graph_evidence(chunks: list, vector: list):
+    return calculate_semantic_evidence_score(chunks, vector)
